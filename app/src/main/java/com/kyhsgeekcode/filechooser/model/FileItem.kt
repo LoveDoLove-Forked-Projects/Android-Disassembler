@@ -54,6 +54,7 @@ open class FileItem : Serializable {
     var file: File? = null // 항목이 의미하는 파일 자체
 //    protected var backFile: File? = null // 항목이 전개되었을 때 나타낼 디렉토리
 
+    @delegate:Transient
     private val isExpandable: Boolean by lazy {
         file?.isDirectory == true ||
                 file?.isArchive() == true ||
