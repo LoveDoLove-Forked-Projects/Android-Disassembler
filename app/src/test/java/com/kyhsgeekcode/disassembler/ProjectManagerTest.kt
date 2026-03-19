@@ -5,6 +5,7 @@ import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
 import com.kyhsgeekcode.disassembler.project.models.ProjectSourceKind
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -42,6 +43,15 @@ class ProjectManagerTest {
         val relPath = computeProjectRelativePath(project, generatedChild.path)
 
         assertEquals("sample/classes.dex.txt", relPath)
+    }
+
+    @Test
+    fun `computeProjectRelativePath throws for paths outside project boundaries`() {
+        val project = projectModelFor("sample")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            computeProjectRelativePath(project, "outside-project/classes.dex")
+        }
     }
 
     @Test

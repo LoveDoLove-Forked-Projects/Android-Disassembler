@@ -298,8 +298,9 @@ fun computeProjectRelativePath(projectModel: ProjectModel, path: String): String
     }
 
     Logger.e("ProjectManager", "getRelPath called on $path")
-    assert(false)
-    return ""
+    throw IllegalArgumentException(
+        "Path $absPath is not inside project ${projectModel.rootFile.absolutePath}"
+    )
 }
 
 private fun substringWithoutLeadingSlash(path: String, prefix: String): String {
