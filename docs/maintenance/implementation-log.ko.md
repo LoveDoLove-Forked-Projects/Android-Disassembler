@@ -9,6 +9,7 @@
 | 빌드 기준선 복구 | 테스트 가능 기준선을 다시 세우고 유지보수 문서 세트를 추가 | 이후 이슈 작업 전에 재현, 분류, 검증 흐름을 고정할 수 있게 기반을 만들었다 | `agent.md`, `docs/maintenance/issue-triage.md`, `docs/maintenance/roadmap.md`, `docs/maintenance/anonymization-and-security.md`, `README.md` | 완료 |
 | 최신 Android 타게팅 필요 | `compileSdk`와 `targetSdkVersion`을 35로 상향 | Play 최신 요구사항에 맞는 방향으로 기준선을 끌어올렸다. 아직 AGP 자체 업그레이드는 후속 작업이다 | `app/build.gradle`, `gradle.properties` | 완료 |
 | API 35 대비 AGP/Gradle 뒤처짐 | AGP를 `8.6.0`, Gradle wrapper를 `8.7`로 올리고 `android.suppressUnsupportedCompileSdk`를 제거했다 | API 35 지원을 억제 옵션이 아니라 공식 최소 호환 버전 조합으로 맞췄고, `buildConfig` 설정도 모듈 `buildFeatures`로 옮겨 AGP 9.0 경고 하나를 추가 정리했다 | `build.gradle`, `gradle/wrapper/gradle-wrapper.properties`, `gradle.properties`, `app/build.gradle` | 완료 |
+| Kotlin plugin deprecation 경고 | Kotlin Gradle plugin을 `1.9.24`, Compose compiler extension을 `1.5.14`로 올리고 stdlib 버전을 정렬했다 | AGP 업그레이드 뒤 남아 있던 `Convention` deprecation 경고를 Kotlin plugin 쪽에서 제거했고, `--warning-mode all` 기준으로 우리 빌드 스크립트에서 드러나는 Gradle 9 경고를 없앴다 | `build.gradle`, `app/build.gradle` | 완료 |
 | 이슈 `#719`, PR `#726` 릴리스 경로 부재 | tag push와 manual dispatch를 지원하는 `release.yml`을 추가하고 기존 CI를 최신 action 버전으로 정리 | 최신 브랜치에서 unsigned/signed APK를 GitHub Actions로 다시 만들고 배포할 수 있는 운영 경로를 복구했다 | `.github/workflows/ci.yml`, `.github/workflows/release.yml` | 완료 |
 | 저장소 정책 현대화 착수, 이슈 `#95` 대응 기반 | SAF 기반 선택 경로를 도입하고 `content://` 입력을 앱 내부 import 파일로 저장 | 외부 절대경로 전제를 줄이고, 재시작 이후에도 다시 열 수 있는 URI 권한 흐름을 시작했다 | `app/src/main/java/com/kyhsgeekcode/filechooser/NewFileChooserActivity.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/viewmodel/MainViewModel.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/PermissionUtils.kt` | 진행 중 |
 | 이슈 `#95` 외부 문서 인텐트 권한 누락 | 앱이 `ACTION_VIEW`나 `EXTRA_STREAM`으로 열린 경우에도 persistable grant 가능 여부를 계산하고 `content://` URI 권한을 선제적으로 유지 | SAF picker 밖에서 들어온 문서도 같은 storage 정책 흐름으로 흡수해서, provider가 허용하는 경우 앱 재실행 이후에도 접근이 끊길 가능성을 줄였다 | `app/src/main/java/com/kyhsgeekcode/disassembler/MainActivity.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/PermissionUtils.kt`, `app/src/test/java/com/kyhsgeekcode/disassembler/PermissionUtilsTest.kt` | 완료 |
@@ -33,6 +34,7 @@
 | `./gradlew testDebugUnitTest assembleDebug` | 통과 | JDK 17 기준 |
 | `./gradlew assembleRelease` | 통과 | unsigned release APK 생성 확인 |
 | `./gradlew help --warning-mode all` | 부분 정리 | `buildConfig` deprecation은 제거, 남은 Gradle 9 경고는 플러그인 적용 경로에서 발생 |
+| `./gradlew testDebugUnitTest assembleDebug assembleRelease --warning-mode all` | 통과 | deprecation 라인 grep 기준 추가 경고 미검출 |
 | 문서 비식별화 점검 | 통과 | 새 문서에는 저장소 상대 경로만 기록 |
 | 파워유저 import entry-point 테스트 | 통과 | standard mode는 SAF only, power-user mode는 advanced import 추가 |
 | 파워유저 advanced source catalog 테스트 | 통과 | power-user 비활성 시 advanced source 없음, 활성 시 선택된 source group만 노출 |
