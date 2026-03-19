@@ -29,7 +29,7 @@ android {
         versionCode 18
         versionName "2.1.5"
         multiDexEnabled true
-        //testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
                 cppFlags ""
@@ -182,6 +182,11 @@ dependencies {
 
     // When using a AppCompat theme
     implementation "com.google.accompanist:accompanist-appcompat-theme:0.20.3"
+
+    androidTestImplementation 'androidx.test:core-ktx:1.6.1'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test.ext:junit-ktx:1.2.1'
+    androidTestImplementation 'androidx.test:rules:1.6.1'
 
 //    implementation 'com.gu.android:toolargetool:0.3.0@aar'
 }
