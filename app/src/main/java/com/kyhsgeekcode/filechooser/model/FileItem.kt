@@ -207,12 +207,20 @@ open class FileItem : Serializable {
     companion object {
         val rootItem = object : FileItem("Main") {
             override suspend fun listSubItems(publisher: (Int, Int) -> Unit): List<FileItem> {
-                return listOf(fileRoot, fileSdcard, apps, processes, others, zoo, hash)
+                return rootEntries(powerUserMode = true)
             }
 
             override fun canExpand(): Boolean = true
             override fun isRawAvailable(): Boolean = false
             override fun isProjectAble(): Boolean = false
+        }
+
+        fun rootEntries(powerUserMode: Boolean): List<FileItem> {
+            return if (powerUserMode) {
+                listOf(fileRoot, fileSdcard, apps, processes, others, zoo, hash)
+            } else {
+                listOf(others)
+            }
         }
 
         val fileRoot = FileItem(file = File("/"))

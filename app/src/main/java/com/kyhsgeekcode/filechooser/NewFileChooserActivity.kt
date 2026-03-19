@@ -28,8 +28,15 @@ import java.net.URL
 
 
 class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
+    companion object {
+        const val EXTRA_POWER_USER_MODE = "power_user_mode"
+    }
+
     private var _binding: ActivityNewFileChooserBinding? = null
     private val binding get() = _binding!!
+    private val powerUserMode by lazy {
+        intent?.getBooleanExtra(EXTRA_POWER_USER_MODE, false) ?: false
+    }
 
     private val snackProgressBarManager by lazy {
         SnackProgressBarManager(
@@ -66,7 +73,7 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
         super.onCreate(savedInstanceState)
         _binding = ActivityNewFileChooserBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        adapter = NewFileChooserAdapter(this)
+        adapter = NewFileChooserAdapter(this, powerUserMode)
         lifecycleScope.launch {
             adapter.tryAddRootItems()
         }

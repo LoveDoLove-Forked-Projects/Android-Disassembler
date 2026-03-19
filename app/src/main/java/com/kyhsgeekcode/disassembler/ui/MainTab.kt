@@ -2,6 +2,7 @@ package com.kyhsgeekcode.disassembler.ui
 
 import android.app.Activity
 import android.content.Intent
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -14,20 +15,34 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import com.kyhsgeekcode.disassembler.R
+import com.kyhsgeekcode.disassembler.importing.DefaultImportEntryPointCatalog
+import com.kyhsgeekcode.disassembler.importing.ImportEntryPoint
+import com.kyhsgeekcode.disassembler.preference.PowerUserModeSettings
 import com.kyhsgeekcode.disassembler.viewmodel.MainViewModel
 import com.kyhsgeekcode.filechooser.NewFileChooserActivity
 
 @Composable
 fun ProjectOverview(viewModel: MainViewModel) {
     val context = LocalContext.current
+    val lifecycleOwner = context as? LifecycleOwner
+    var powerUserModeEnabled by remember {
+        mutableStateOf(PowerUserModeSettings.isEnabled(context))
+    }
 
-    val launcher = rememberLauncherForActivityResult(
+    val advancedImportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
         if (it.resultCode == Activity.RESULT_OK) {
@@ -37,8 +52,46 @@ fun ProjectOverview(viewModel: MainViewModel) {
             }
         }
     }
+    val safImportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { selectedUri ->
+        if (selectedUri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    selectedUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+            }
+            viewModel.onSelectIntent(
+                Intent().apply {
+                    putExtra("uri", selectedUri)
+                    putExtra("openProject", false)
+                }
+            )
+        }
+    }
 
     val askCopy = viewModel.askCopy.collectAsState()
+    val visibleEntryPoints = remember(powerUserModeEnabled) {
+        DefaultImportEntryPointCatalog.visibleEntryPoints(powerUserModeEnabled)
+    }
+
+    DisposableEffect(lifecycleOwner, context) {
+        if (lifecycleOwner == null) {
+            onDispose {}
+        } else {
+            val observer = object : DefaultLifecycleObserver {
+                override fun onResume(owner: LifecycleOwner) {
+                    powerUserModeEnabled = PowerUserModeSettings.isEnabled(context)
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
+    }
 
     Column(
         Modifier
@@ -47,11 +100,20 @@ fun ProjectOverview(viewModel: MainViewModel) {
     ) {
         Text(text = stringResource(id = R.string.main_select_source_guide))
         Row(Modifier.fillMaxWidth()) {
-            Button(onClick = {
-                val j = Intent(context, NewFileChooserActivity::class.java)
-                launcher.launch(j)
-            }) {
-                Text(text = stringResource(id = R.string.select_file))
+            for (entryPoint in visibleEntryPoints) {
+                Button(
+                    modifier = Modifier.padding(end = 8.dp),
+                    onClick = {
+                        launchImportEntryPoint(
+                            entryPoint,
+                            context = context,
+                            safImportLauncher = safImportLauncher,
+                            advancedImportLauncher = advancedImportLauncher
+                        )
+                    }
+                ) {
+                    Text(text = stringResource(id = entryPoint.labelRes))
+                }
             }
         }
     }
@@ -87,5 +149,22 @@ fun ProjectOverview(viewModel: MainViewModel) {
                 }
             }
         )
+    }
+}
+
+private fun launchImportEntryPoint(
+    entryPoint: ImportEntryPoint,
+    context: android.content.Context,
+    safImportLauncher: ManagedActivityResultLauncher<Array<String>, android.net.Uri?>,
+    advancedImportLauncher: ManagedActivityResultLauncher<Intent, androidx.activity.result.ActivityResult>
+) {
+    when (entryPoint) {
+        ImportEntryPoint.SafImport -> safImportLauncher.launch(arrayOf("*/*"))
+        ImportEntryPoint.AdvancedImport -> {
+            val intent = Intent(context, NewFileChooserActivity::class.java).apply {
+                putExtra(NewFileChooserActivity.EXTRA_POWER_USER_MODE, true)
+            }
+            advancedImportLauncher.launch(intent)
+        }
     }
 }

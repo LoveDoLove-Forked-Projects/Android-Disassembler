@@ -18,7 +18,8 @@ import kotlin.collections.ArrayList
 
 class NewFileChooserAdapter(
     private
-    val parentActivity: NewFileChooserActivity
+    val parentActivity: NewFileChooserActivity,
+    private val powerUserMode: Boolean
 ) : RecyclerView.Adapter<NewFileChooserAdapter.ViewHolder>() {
     val TAG = "Adapter"
     private val values: MutableList<FileItem> = ArrayList()
@@ -165,11 +166,7 @@ class NewFileChooserAdapter(
     }
 
     suspend fun tryAddRootItems() {
-        val items: List<FileItem> = try {
-            FileItem.rootItem.listSubItems()
-        } catch (e: Exception) {
-            arrayListOf(FileItem(e.message ?: ""))
-        }
+        val items: List<FileItem> = FileItem.rootEntries(powerUserMode)
         values.addAll(items)
     }
 
@@ -252,7 +249,11 @@ class NewFileChooserAdapter(
         val lastItem = backStack.pop()
         currentParentItem = lastItem
         CoroutineScope(Dispatchers.Default).launch {
-            val items = listSubItemsCached(currentParentItem)
+            val items = if (currentParentItem == FileItem.rootItem) {
+                FileItem.rootEntries(powerUserMode)
+            } else {
+                listSubItemsCached(currentParentItem)
+            }
             addItemsToListSorted(items)
             withContext(Dispatchers.Main) {
                 notifyDataSetChanged()

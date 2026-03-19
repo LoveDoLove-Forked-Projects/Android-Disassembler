@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.SwitchPreferenceCompat
 import com.kyhsgeekcode.disassembler.MainActivity
 import com.kyhsgeekcode.disassembler.R
 import com.kyhsgeekcode.disassembler.disasmtheme.ColorHelper
@@ -117,6 +118,7 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
                 false
             }
         lp.onPreferenceChangeListener = this
+        findPreference<SwitchPreferenceCompat>(PowerUserModeSettings.POWER_USER_IMPORT_MODE_KEY)
         val scrn = findPreference<Preference>("openscrn")
         scrn?.setOnPreferenceClickListener {
             LibsBuilder()

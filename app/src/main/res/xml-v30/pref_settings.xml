@@ -20,6 +20,13 @@
         app:preference_selector="wheel"
         app:default_color="colorPrimary"/-->
     </PreferenceCategory>
+    <PreferenceCategory android:title="@string/power_user_features">
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="power_user_import_mode"
+            android:summary="@string/power_user_import_summary"
+            android:title="@string/power_user_import_title" />
+    </PreferenceCategory>
     <PreferenceCategory android:title="@string/app_info">
         <Preference
             android:fragment="com.kyhsgeekcode.disassembler.preference.DeveloperInfoFragment"

@@ -11,6 +11,7 @@
 | 저장소 정책 현대화 착수, 이슈 `#95` 대응 기반 | SAF 기반 선택 경로를 도입하고 `content://` 입력을 앱 내부 import 파일로 저장 | 외부 절대경로 전제를 줄이고, 재시작 이후에도 다시 열 수 있는 URI 권한 흐름을 시작했다 | `app/src/main/java/com/kyhsgeekcode/filechooser/NewFileChooserActivity.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/viewmodel/MainViewModel.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/PermissionUtils.kt` | 진행 중 |
 | broad storage 우회 경로 정리 | 더 이상 쓰지 않는 legacy picker 코드와 Android 11+의 `MANAGE_ALL_FILES_ACCESS` 유도 설정을 제거 | SAF 기반 경로를 기본 흐름으로 고정하고, 정책상 불리한 all-files access 진입점을 줄였다 | `app/src/main/java/com/kyhsgeekcode/disassembler/MainActivity.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/preference/SettingsFragment.kt`, `app/src/main/res/xml/pref_settings.xml`, `app/src/main/res/xml-v30/pref_settings.xml`, `app/src/main/res/values/array.xml` | 완료 |
 | 프로젝트 저장 모델 확장 | `sourceDescriptor`를 추가하고 새 프로젝트 생성 시 원본 유형을 함께 기록 | 기존 `sourceFilePath` 호환성은 유지하면서 이후 `Uri | file path | cache` 구분으로 넘어갈 발판을 만들었다 | `app/src/main/java/com/kyhsgeekcode/disassembler/project/models/ProjectModel.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/project/ProjectManager.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/viewmodel/MainViewModel.kt` | 완료 |
+| SAF와 파워유저 경로 분리 | 기본 import는 SAF 직행으로 두고, settings에서 power-user mode를 켰을 때만 `Advanced import`를 노출 | 기본 사용자 경로와 비정책적/고급 경로를 같은 UI에서 섞지 않고 분리했다 | `app/src/main/java/com/kyhsgeekcode/disassembler/importing/ImportEntryPointCatalog.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/preference/PowerUserModeSettings.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/ui/MainTab.kt`, `app/src/main/java/com/kyhsgeekcode/filechooser/NewFileChooserActivity.kt`, `app/src/main/java/com/kyhsgeekcode/filechooser/NewFileChooserAdapter.kt`, `app/src/main/java/com/kyhsgeekcode/filechooser/model/FileItem.kt`, `app/src/main/res/xml/pref_settings.xml`, `app/src/main/res/xml-v30/pref_settings.xml` | 완료 |
 | 구형 저장소 권한 정리 | `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`를 `maxSdkVersion=28`로 제한하고 `requestLegacyExternalStorage` 제거 | 최신 Android에서 불필요한 legacy 외부 저장소 모델 의존성을 줄였다 | `app/src/main/AndroidManifest.xml` | 완료 |
 | 패키징 경고 정리 | manifest의 `extractNativeLibs` 선언을 제거하고 Gradle `jniLibs.useLegacyPackaging = false`로 이동 | native packaging 관련 경고를 Gradle 구성 위치로 정리했다 | `app/build.gradle`, `app/src/main/AndroidManifest.xml` | 완료 |
 | 이슈 `#670` 앱 런처 미노출 | `MainActivity`에 `android:enabled="true"`를 명시 | 일부 기기/설정에서 런처 진입점이 빠지는 문제를 명시적으로 막았다 | `app/src/main/AndroidManifest.xml` | 완료 |
@@ -26,6 +27,7 @@
 | `./gradlew help` | 통과 | JDK 17 기준 |
 | `./gradlew testDebugUnitTest assembleDebug` | 통과 | JDK 17 기준 |
 | 문서 비식별화 점검 | 통과 | 새 문서에는 저장소 상대 경로만 기록 |
+| 파워유저 import entry-point 테스트 | 통과 | standard mode는 SAF only, power-user mode는 advanced import 추가 |
 
 ## 다음 웨이브 후보
 

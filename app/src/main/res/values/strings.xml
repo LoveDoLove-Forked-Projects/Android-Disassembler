@@ -54,6 +54,10 @@
     <string name="preview">preview</string>ㄴ
     <string name="main_select_source_guide">Select any file to disassemble, then open sub files from the drawer left.</string>
     <string name="select_file">Select file</string>
+    <string name="advanced_import">Advanced import</string>
+    <string name="power_user_features">Power-user features</string>
+    <string name="power_user_import_title">Enable power-user import options</string>
+    <string name="power_user_import_summary">Show advanced non-SAF import entry points such as root and direct filesystem browsing.</string>
     <string name="architecture">Architecture:</string>
     <string name="finish_setup">Finish Setup</string>
     <string name="override_autosetup">Override autosetup</string>
