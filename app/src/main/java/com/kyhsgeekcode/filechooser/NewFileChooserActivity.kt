@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.kyhsgeekcode.disassembler.ProgressHandler
 import com.kyhsgeekcode.disassembler.databinding.ActivityNewFileChooserBinding
+import com.kyhsgeekcode.disassembler.preference.PowerUserModeSettings
 import com.kyhsgeekcode.disassembler.showYesNoDialog
 import com.kyhsgeekcode.download
 import com.kyhsgeekcode.filechooser.model.FileItem
@@ -36,6 +37,9 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
     private val binding get() = _binding!!
     private val powerUserMode by lazy {
         intent?.getBooleanExtra(EXTRA_POWER_USER_MODE, false) ?: false
+    }
+    val advancedImportOptions by lazy {
+        PowerUserModeSettings.advancedImportOptions(this).copy(powerUserMode = powerUserMode)
     }
 
     private val snackProgressBarManager by lazy {
@@ -73,7 +77,7 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
         super.onCreate(savedInstanceState)
         _binding = ActivityNewFileChooserBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        adapter = NewFileChooserAdapter(this, powerUserMode)
+        adapter = NewFileChooserAdapter(this, advancedImportOptions)
         lifecycleScope.launch {
             adapter.tryAddRootItems()
         }

@@ -24,6 +24,11 @@ import java.util.*
 class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClickListener,
     Preference.OnPreferenceChangeListener {
     private lateinit var prefnames: Array<String?>
+    private var powerUserPreference: SwitchPreferenceCompat? = null
+    private var filesystemPreference: SwitchPreferenceCompat? = null
+    private var appsPreference: SwitchPreferenceCompat? = null
+    private var researchToolsPreference: SwitchPreferenceCompat? = null
+
     override fun onPreferenceChange(p1: Preference, p2: Any): Boolean {
         val key = p1.key
         if ("predefinedcolor" == key) {
@@ -60,6 +65,9 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
             val ed = sp.edit()
             ed.putString("PaletteName", name).apply()
             ColorHelper.setPalette(name)
+        } else if (PowerUserModeSettings.POWER_USER_IMPORT_MODE_KEY == key) {
+            updatePowerUserPreferenceVisibility(p2 as Boolean)
+            return true
         }
         return false
     }
@@ -118,7 +126,18 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
                 false
             }
         lp.onPreferenceChangeListener = this
-        findPreference<SwitchPreferenceCompat>(PowerUserModeSettings.POWER_USER_IMPORT_MODE_KEY)
+        powerUserPreference =
+            findPreference(PowerUserModeSettings.POWER_USER_IMPORT_MODE_KEY)
+        filesystemPreference =
+            findPreference(PowerUserModeSettings.POWER_USER_FILESYSTEM_IMPORT_KEY)
+        appsPreference =
+            findPreference(PowerUserModeSettings.POWER_USER_APPS_IMPORT_KEY)
+        researchToolsPreference =
+            findPreference(PowerUserModeSettings.POWER_USER_RESEARCH_TOOLS_IMPORT_KEY)
+        powerUserPreference?.onPreferenceChangeListener = this
+        updatePowerUserPreferenceVisibility(
+            powerUserPreference?.isChecked ?: false
+        )
         val scrn = findPreference<Preference>("openscrn")
         scrn?.setOnPreferenceClickListener {
             LibsBuilder()
@@ -138,5 +157,11 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
         //setOnPreferenceChange(findPreference("userNameOpen"));
 //	setOnPreferenceChange(findPreference("autoUpdate_ringtone"));
 //        requestAppPermissions(this);
+    }
+
+    private fun updatePowerUserPreferenceVisibility(enabled: Boolean) {
+        filesystemPreference?.isVisible = enabled
+        appsPreference?.isVisible = enabled
+        researchToolsPreference?.isVisible = enabled
     }
 }

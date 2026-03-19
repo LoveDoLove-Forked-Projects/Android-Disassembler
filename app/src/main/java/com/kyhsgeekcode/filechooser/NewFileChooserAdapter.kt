@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import com.kyhsgeekcode.disassembler.databinding.NewFileChooserRowBinding
+import com.kyhsgeekcode.disassembler.importing.AdvancedImportOptions
 import com.kyhsgeekcode.disassembler.showEditDialog
 import com.kyhsgeekcode.filechooser.model.FileItem
 import kotlinx.coroutines.*
@@ -19,7 +20,7 @@ import kotlin.collections.ArrayList
 class NewFileChooserAdapter(
     private
     val parentActivity: NewFileChooserActivity,
-    private val powerUserMode: Boolean
+    private val advancedImportOptions: AdvancedImportOptions
 ) : RecyclerView.Adapter<NewFileChooserAdapter.ViewHolder>() {
     val TAG = "Adapter"
     private val values: MutableList<FileItem> = ArrayList()
@@ -166,7 +167,7 @@ class NewFileChooserAdapter(
     }
 
     suspend fun tryAddRootItems() {
-        val items: List<FileItem> = FileItem.rootEntries(powerUserMode)
+        val items: List<FileItem> = FileItem.rootEntries(advancedImportOptions)
         values.addAll(items)
     }
 
@@ -250,7 +251,7 @@ class NewFileChooserAdapter(
         currentParentItem = lastItem
         CoroutineScope(Dispatchers.Default).launch {
             val items = if (currentParentItem == FileItem.rootItem) {
-                FileItem.rootEntries(powerUserMode)
+                FileItem.rootEntries(advancedImportOptions)
             } else {
                 listSubItemsCached(currentParentItem)
             }

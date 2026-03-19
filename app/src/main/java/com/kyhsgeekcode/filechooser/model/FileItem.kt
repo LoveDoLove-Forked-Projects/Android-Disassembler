@@ -8,6 +8,9 @@ import androidx.core.content.ContextCompat
 import at.pollaknet.api.facile.Facile
 import com.kyhsgeekcode.*
 import com.kyhsgeekcode.disassembler.R
+import com.kyhsgeekcode.disassembler.importing.AdvancedImportOptions
+import com.kyhsgeekcode.disassembler.importing.AdvancedImportSource
+import com.kyhsgeekcode.disassembler.importing.DefaultAdvancedImportSourceCatalog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
@@ -207,7 +210,14 @@ open class FileItem : Serializable {
     companion object {
         val rootItem = object : FileItem("Main") {
             override suspend fun listSubItems(publisher: (Int, Int) -> Unit): List<FileItem> {
-                return rootEntries(powerUserMode = true)
+                return rootEntries(
+                    AdvancedImportOptions(
+                        powerUserMode = true,
+                        filesystemAccess = true,
+                        installedAppsAccess = true,
+                        researchToolsAccess = true
+                    )
+                )
             }
 
             override fun canExpand(): Boolean = true
@@ -215,12 +225,26 @@ open class FileItem : Serializable {
             override fun isProjectAble(): Boolean = false
         }
 
-        fun rootEntries(powerUserMode: Boolean): List<FileItem> {
-            return if (powerUserMode) {
-                listOf(fileRoot, fileSdcard, apps, processes, others, zoo, hash)
-            } else {
-                listOf(others)
+        fun rootEntries(options: AdvancedImportOptions): List<FileItem> {
+            if (!options.powerUserMode) {
+                return listOf(others)
             }
+
+            val visibleSources = DefaultAdvancedImportSourceCatalog.visibleSources(options)
+            val result = mutableListOf<FileItem>(others)
+            if (AdvancedImportSource.Filesystem in visibleSources) {
+                result += fileRoot
+                result += fileSdcard
+                result += processes
+            }
+            if (AdvancedImportSource.InstalledApps in visibleSources) {
+                result += apps
+            }
+            if (AdvancedImportSource.ResearchTools in visibleSources) {
+                result += zoo
+                result += hash
+            }
+            return result
         }
 
         val fileRoot = FileItem(file = File("/"))

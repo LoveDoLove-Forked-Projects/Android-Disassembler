@@ -26,6 +26,21 @@
             android:key="power_user_import_mode"
             android:summary="@string/power_user_import_summary"
             android:title="@string/power_user_import_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="power_user_filesystem_import"
+            android:summary="@string/power_user_filesystem_import_summary"
+            android:title="@string/power_user_filesystem_import_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="power_user_apps_import"
+            android:summary="@string/power_user_apps_import_summary"
+            android:title="@string/power_user_apps_import_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="power_user_research_tools_import"
+            android:summary="@string/power_user_research_tools_import_summary"
+            android:title="@string/power_user_research_tools_import_title" />
     </PreferenceCategory>
 <!--    <PreferenceCategory android:title="Security configuration">-->
 <!--        <Preference android:title="Manage this app\'s all storage access">-->
