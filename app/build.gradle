@@ -39,6 +39,8 @@ android {
     buildFeatures {
         // Enables Jetpack Compose for this module
         compose true
+        viewBinding true
+        buildConfig true
     }
     /*packagingOptions {
         pickFirst 'lib/armeabi-v7a/libhello-jni.so'
@@ -63,9 +65,6 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
-    }
-    buildFeatures {
-        viewBinding true
     }
     externalNativeBuild {
         cmake {
