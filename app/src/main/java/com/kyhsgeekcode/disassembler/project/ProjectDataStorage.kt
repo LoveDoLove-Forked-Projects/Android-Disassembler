@@ -12,7 +12,13 @@ object ProjectDataStorage {
     fun getFileContent(relPath: String): ByteArray {
         val key = Pair(relPath, DataType.FileContent)
         if (!data.containsKey(key)) {
-            data[key] = resolveToRead(relPath)!!.readBytes()
+            val file = resolveToRead(relPath)!!
+            val bytes = file.readBytes()
+            if (shouldCacheFileContent(file.length())) {
+                data[key] = bytes
+            } else {
+                return bytes
+            }
         }
         return data[key] as ByteArray
     }
@@ -135,6 +141,12 @@ object ProjectDataStorage {
         val key = Pair(keykey, DataType.FileContent)
         data[key] = datadata
     }
+}
+
+internal const val MAX_CACHED_FILE_CONTENT_BYTES = 8L * 1024 * 1024
+
+internal fun shouldCacheFileContent(sizeBytes: Long): Boolean {
+    return sizeBytes <= MAX_CACHED_FILE_CONTENT_BYTES
 }
 
 enum class DataType {
