@@ -16,6 +16,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      HAS_SIGNING_SECRETS: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEY_ALIAS != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +38,7 @@ jobs:
         run: ./gradlew --no-daemon assembleRelease
 
       - name: Sign APK
-        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEY_ALIAS != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_PASSWORD != '' }}
+        if: ${{ env.HAS_SIGNING_SECRETS == 'true' }}
         id: sign_app
         uses: r0adkll/sign-android-release@v1
         with:
@@ -50,7 +52,10 @@ jobs:
         id: artifact
         shell: bash
         run: |
-          signed_path="${{ steps.sign_app.outputs.signedReleaseFile }}"
+          signed_path=""
+          if [ "${HAS_SIGNING_SECRETS}" = "true" ]; then
+            signed_path="${{ steps.sign_app.outputs.signedReleaseFile }}"
+          fi
           if [ -n "$signed_path" ]; then
             artifact_path="$signed_path"
             release_body=""
