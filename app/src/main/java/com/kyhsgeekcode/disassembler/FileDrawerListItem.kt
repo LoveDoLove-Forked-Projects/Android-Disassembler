@@ -14,6 +14,7 @@ import com.kyhsgeekcode.disassembler.project.ProjectDataStorage
 import com.kyhsgeekcode.disassembler.project.ProjectManager
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
 import com.kyhsgeekcode.disassembler.project.models.ProjectType
+import com.kyhsgeekcode.extractSupportedArchive
 import com.kyhsgeekcode.filechooser.model.getValueFromTypeKindAndBytes
 import com.kyhsgeekcode.getDrawable
 import com.kyhsgeekcode.isArchive
@@ -22,8 +23,6 @@ import org.jf.baksmali.Main
 import timber.log.Timber
 import java.io.*
 import java.util.*
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 
 class FileDrawerListItem {
     var caption: String
@@ -301,36 +300,9 @@ class FileDrawerListItem {
                 targetDirectory.mkdirs()
                 val total = File(path).length() * 2
                 progressHandler(0, total.toInt())
-                var read = 0
                 try {
-                    val zi = ZipInputStream(FileInputStream(path))
-                    var entry: ZipEntry? = null
-                    val buffer = ByteArray(2048)
-                    while (zi.nextEntry?.also { entry = it } != null) {
-                        val outfile = File(targetDirectory, entry!!.name)
-                        val canonicalPath = outfile.canonicalPath
-                        if (!canonicalPath.startsWith(targetDirectory.canonicalPath)) {
-                            throw SecurityException(
-                                "The file may have a Zip Path Traversal Vulnerability." +
-                                        "Is the file trusted?"
-                            )
-                        }
-                        outfile.parentFile.mkdirs()
-                        var output: FileOutputStream? = null
-                        try {
-                            if (entry!!.name == "")
-                                continue
-                            Timber.d("entry: " + entry + ", outfile:" + outfile)
-                            output = FileOutputStream(outfile)
-                            var len = 0
-                            while (zi.read(buffer).also { len = it } > 0) {
-                                output.write(buffer, 0, len)
-                            }
-                            read += len
-                        } finally { // we must always close the output file
-                            output?.close()
-                        }
-                        progressHandler(read, 100)
+                    extractSupportedArchive(File(path), targetDirectory) { current, totalBytes ->
+                        progressHandler(current.toInt(), totalBytes.toInt())
                     }
                     finishHandler()
                     return FileDrawerListItem(targetDirectory, initialLevel).getSubObjects()

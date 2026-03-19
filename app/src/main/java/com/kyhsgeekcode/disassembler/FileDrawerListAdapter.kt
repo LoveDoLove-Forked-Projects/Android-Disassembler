@@ -17,18 +17,15 @@ import com.kyhsgeekcode.disassembler.project.ProjectDataStorage
 import com.kyhsgeekcode.disassembler.project.ProjectManager
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
 import com.kyhsgeekcode.disassembler.project.models.ProjectType
+import com.kyhsgeekcode.extractSupportedArchive
 import com.kyhsgeekcode.getDrawable
 import org.jf.baksmali.Main
 import splitties.init.appCtx
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 import kotlin.experimental.and
 import kotlin.math.roundToInt
 
@@ -103,36 +100,9 @@ class FileDrawerListAdapter(val progressHandler: ProgressHandler) {
                 targetDirectory.mkdirs()
                 val total = File(path).length() * 2
                 progressHandler.publishProgress(0, total.toInt())
-                var read = 0
                 try {
-                    val zi = ZipInputStream(FileInputStream(path))
-                    var entry: ZipEntry? = null
-                    val buffer = ByteArray(2048)
-                    while (zi.nextEntry?.also { entry = it } != null) {
-                        val outfile = File(targetDirectory, entry!!.name)
-                        val canonicalPath = outfile.canonicalPath
-                        if (!canonicalPath.startsWith(targetDirectory.canonicalPath)) {
-                            throw SecurityException(
-                                "The file may have a Zip Path Traversal Vulnerability." +
-                                        "Is the file trusted?"
-                            )
-                        }
-                        outfile.parentFile.mkdirs()
-                        var output: FileOutputStream? = null
-                        try {
-                            if (entry!!.name == "")
-                                continue
-                            Log.d(TAG, "entry: $entry, outfile:$outfile")
-                            output = FileOutputStream(outfile)
-                            var len = 0
-                            while (zi.read(buffer).also { len = it } > 0) {
-                                output.write(buffer, 0, len)
-                            }
-                            read += len
-                        } finally { // we must always close the output file
-                            output?.close()
-                        }
-                        progressHandler.publishProgress(read)
+                    extractSupportedArchive(File(path), targetDirectory) { current, totalBytes ->
+                        progressHandler.publishProgress(current.toInt(), totalBytes.toInt())
                     }
                     progressHandler.finishProgress()
                     return getSubObjects(FileDrawerListItem(targetDirectory, initialLevel))

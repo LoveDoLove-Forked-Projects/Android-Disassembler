@@ -115,54 +115,59 @@ suspend fun extract(
     publisher: (Long, Long) -> Unit = { current, total -> }
 ) =
     withContext(Dispatchers.IO) {
-        Log.v("extract", "File:${from.path}")
-        var archi: ArchiveInputStream? = null
-        val totalSize = from.length()
-        try {
-            archi =
-                ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(from.inputStream()))
-            var entry: ArchiveEntry?
-
-            while (archi.nextEntry.also { entry = it } != null) {
-                if (entry!!.name == "")
-                    continue
-                if (!archi.canReadEntryData(entry)) {
-                    // log something?
-                    Log.e("Extract archive", "Cannot read entry data")
-                    continue
-                }
-                val f = toDir.resolve(entry?.name!!)
-                if (entry!!.isDirectory) {
-                    if (!f.isDirectory && !f.mkdirs()) {
-                        throw IOException("failed to create directory $f")
-                    }
-                } else {
-                    val parent = f.parentFile
-                    if (!parent.isDirectory && !parent.mkdirs()) {
-                        throw IOException("failed to create directory $parent")
-                    }
-                    if (!f.canonicalPath.startsWith(toDir.canonicalPath)) {
-                        throw SecurityException(
-                            "The zip/apk file may have a Zip Path Traversal Vulnerability." +
-                                    "Is the zip/apk file trusted?"
-                        )
-                    }
-                    val o = f.outputStream()
-                    IOUtils.copy(archi, o)
-                    o.close()
-                }
-                withContext(Dispatchers.Main) {
-                    publisher(archi.bytesRead, totalSize)
-                }
-            }
-        } catch (e: ArchiveException) {
-            Log.e("Extract archive", "error inflating", e)
-        } catch (e: ZipException) {
-            Log.e("Extract archive", "error inflating", e)
-        } finally {
-            archi?.close()
+        extractSupportedArchive(from, toDir) { current, total ->
+            publisher(current, total)
         }
     }
+
+@Throws(IOException::class, SecurityException::class)
+fun extractSupportedArchive(
+    from: File,
+    toDir: File,
+    publisher: (Long, Long) -> Unit = { _, _ -> }
+) {
+    val totalSize = from.length()
+    try {
+        ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(from.inputStream())).use { archi ->
+            var entry: ArchiveEntry?
+            while (archi.nextEntry.also { entry = it } != null) {
+                val archiveEntry = entry ?: continue
+                if (archiveEntry.name.isBlank()) continue
+                if (!archi.canReadEntryData(archiveEntry)) {
+                    continue
+                }
+
+                val outputFile = toDir.resolve(archiveEntry.name)
+                val canonicalPath = outputFile.canonicalPath
+                if (!canonicalPath.startsWith(toDir.canonicalPath)) {
+                    throw SecurityException(
+                        "The archive file may have a Zip Path Traversal Vulnerability." +
+                                "Is the archive file trusted?"
+                    )
+                }
+
+                if (archiveEntry.isDirectory) {
+                    if (!outputFile.isDirectory && !outputFile.mkdirs()) {
+                        throw IOException("failed to create directory $outputFile")
+                    }
+                } else {
+                    val parent = outputFile.parentFile
+                    if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
+                        throw IOException("failed to create directory $parent")
+                    }
+                    outputFile.outputStream().use { output ->
+                        IOUtils.copy(archi, output)
+                    }
+                }
+                publisher(archi.bytesRead, totalSize)
+            }
+        }
+    } catch (e: ArchiveException) {
+        throw IOException("error inflating archive", e)
+    } catch (e: ZipException) {
+        throw IOException("error inflating archive", e)
+    }
+}
 
 fun String.toValidFileName(): String {
     return this.replace(Regex("[\\\\/:*?\"<>|]"), "")
