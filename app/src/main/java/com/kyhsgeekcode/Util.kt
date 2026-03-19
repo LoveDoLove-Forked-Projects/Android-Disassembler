@@ -285,7 +285,7 @@ fun sendErrorReport(error: Throwable) {
     var ver = ""
     try {
         val pInfo = appCtx.packageManager.getPackageInfo(appCtx.packageName, 0)
-        ver = pInfo.versionName
+        ver = pInfo.versionName ?: ""
     } catch (e: PackageManager.NameNotFoundException) {
         e.printStackTrace()
     }

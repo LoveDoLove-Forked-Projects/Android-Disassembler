@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import at.pollaknet.api.facile.FacileReflector
@@ -112,10 +113,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (fi != null) {
             onSelectFileItem(fi)
         } else {
+            val displayName = intent.getStringExtra("displayName")
             val uri = intent.getParcelableExtra("uri") as Uri?
                 ?: intent.getBundleExtra("extras")?.get(Intent.EXTRA_STREAM) as Uri?
                 ?: return
-            onSelectUri(uri)
+            onSelectUri(uri, displayName)
         }
     }
 
@@ -133,14 +135,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _askCopy.value = true
     }
 
-    private fun onSelectUri(uri: Uri) {
+    private fun onSelectUri(uri: Uri, displayName: String? = null) {
         if (uri.scheme == "content") {
             try {
                 val app = getApplication<Application>()
                 app.contentResolver.openInputStream(uri).use { inStream ->
-                    val file = app.getExternalFilesDir(null)?.resolve("tmp")?.resolve("openDirect")
-                        ?: return
-                    file.parentFile.mkdirs()
+                    val fileName = resolveImportedFileName(app, uri, displayName)
+                    val file = app.filesDir.resolve("imports").resolve(fileName)
+                    file.parentFile?.mkdirs()
                     file.outputStream().use { fileOut ->
                         inStream?.copyTo(fileOut)
                     }
@@ -317,6 +319,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
+internal fun sanitizeImportedFileName(displayName: String?): String {
+    val normalized = displayName
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?.replace(Regex("""[/\\]+"""), "_")
+    return normalized ?: "openDirect"
+}
+
+private fun resolveImportedFileName(
+    app: Application,
+    uri: Uri,
+    suggestedDisplayName: String?
+): String {
+    val displayName = suggestedDisplayName
+        ?: app.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val displayNameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (displayNameIndex >= 0 && cursor.moveToFirst()) {
+                cursor.getString(displayNameIndex)
+            } else {
+                null
+            }
+        }
+        ?: uri.lastPathSegment
+    return sanitizeImportedFileName(displayName)
+}
+
 
 private fun createTabData(item: FileDrawerTreeItem): TabData {
     var title = "${item.caption} as ${item.type}"
@@ -392,4 +426,3 @@ fun copyNativeDirToProject(nativeFile: File?, project: ProjectModel) {
         copyDirectory(nativeFile, targetFile)
     }
 }
-

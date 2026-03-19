@@ -169,7 +169,7 @@ object ProjectManager {
     fun save(projectModel: ProjectModel) {
         require(projectModelToPath.contains(projectModel))
         val jsonString = Json.encodeToString(projectModel)
-        val file = File(projectModelToPath[projectModel])
+        val file = File(requireNotNull(projectModelToPath[projectModel]))
         file.outputStream().bufferedWriter().use { it.write(jsonString) }
     }
 
@@ -239,36 +239,7 @@ object ProjectManager {
 
     fun getRelPath(path: String): String {
         requireNotNull(currentProject)
-        if (path == currentProject!!.sourceFilePath)
-            return ""
-        val rootFilePath = currentProject!!.rootFile.absolutePath
-        val absPath = File(path).absolutePath
-        if (absPath.startsWith(rootFilePath)) {
-            // orig나 gen에 있다.
-            val orig = File(rootFilePath).resolve("original").path
-            Log.d(TAG, "absPath:$absPath  \n orig:$orig")
-            if (absPath.startsWith(orig)) {
-                return substringWithoutSlash(absPath, orig)
-            } else {
-                val gen = currentProject!!.generatedFolder
-                Log.d(TAG, "absPath:$absPath \n gen:$gen")
-                if (absPath.startsWith(gen)) {
-                    return substringWithoutSlash(absPath, gen)
-                }
-            }
-//            val subs = absPath.substring(rootFilePath.length)
-//            if (subs.isNotEmpty() && subs[0] == '/')
-//                return subs.substring(1)
-//            return subs
-        }
-        // 외부에 있다.
-        val srcPath = currentProject!!.sourceFilePath
-        if (absPath.startsWith(srcPath)) {
-            return substringWithoutSlash(absPath, srcPath)
-        }
-        Logger.e(TAG, "getRelPath called on $path")
-        assert(false)
-        return ""
+        return computeProjectRelativePath(currentProject!!, path)
     }
 
 //    fun getRelPathFromGen(path: String): String {
@@ -287,4 +258,41 @@ object ProjectManager {
             return sub.substring(1)
         return sub
     }
+}
+
+fun computeProjectRelativePath(projectModel: ProjectModel, path: String): String {
+    if (path == projectModel.sourceFilePath) {
+        return ""
+    }
+
+    val rootFilePath = projectModel.rootFile.absolutePath
+    val absPath = File(path).absolutePath
+    if (absPath.startsWith(rootFilePath)) {
+        val orig = File(rootFilePath).resolve("original").path
+        if (absPath.startsWith(orig)) {
+            return substringWithoutLeadingSlash(absPath, orig)
+        }
+
+        val generated = File(projectModel.generatedFolder).absolutePath
+        if (absPath.startsWith(generated)) {
+            return substringWithoutLeadingSlash(absPath, generated)
+        }
+    }
+
+    val srcPath = projectModel.sourceFilePath
+    if (absPath.startsWith(srcPath)) {
+        return substringWithoutLeadingSlash(absPath, srcPath)
+    }
+
+    Logger.e("ProjectManager", "getRelPath called on $path")
+    assert(false)
+    return ""
+}
+
+private fun substringWithoutLeadingSlash(path: String, prefix: String): String {
+    val sub = path.substring(prefix.length)
+    if (sub.isNotEmpty() && sub[0] == '/') {
+        return sub.substring(1)
+    }
+    return sub
 }

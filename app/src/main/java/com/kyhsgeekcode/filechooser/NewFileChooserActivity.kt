@@ -4,8 +4,10 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -44,6 +46,20 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
     lateinit var adapter: NewFileChooserAdapter
     private lateinit var linearLayoutManager: LinearLayoutManager
     val TAG = "NewFileChooserA"
+    private val openDocumentLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { selectedUri ->
+            if (selectedUri == null) {
+                return@registerForActivityResult
+            }
+            grantReadPermission(selectedUri)
+            val resultIntent = Intent().apply {
+                putExtra("uri", selectedUri)
+                putExtra("displayName", queryDisplayName(selectedUri))
+                putExtra("openProject", false)
+            }
+            setResult(Activity.RESULT_OK, resultIntent)
+            finish()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.v(TAG, "onCreate")
@@ -107,34 +123,7 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
     }
 
     fun showOtherChooser() {
-        val intent = Intent()
-        intent.type = "*/*"
-        intent.action = Intent.ACTION_GET_CONTENT
-        startActivityForResult(Intent.createChooser(intent, "Choose Content"), 1)
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 1 && resultCode == Activity.RESULT_OK && data != null) {
-            val selectedUri = data.data
-            val resultIntent = Intent()
-//            resultIntent.putExtra("fileItem", FileItem())
-            Log.e(TAG, "selecteduri:${data.data}")
-            Log.e("intent URI", intent.toUri(0))
-            val bundle = data.extras
-            if (bundle != null) {
-                for (key in bundle.keySet()) {
-                    Log.e(TAG, key + " : " + if (bundle[key] != null) bundle[key] else "NULL")
-                }
-            } else {
-                Log.e(TAG, "Bundle is null")
-            }
-            resultIntent.putExtra("uri", selectedUri)
-            resultIntent.putExtra("extras", data.extras)
-            resultIntent.putExtra("openProject", false)
-            setResult(Activity.RESULT_OK, resultIntent)
-            finish()
-        }
+        openDocumentLauncher.launch(arrayOf("*/*"))
     }
 
     fun showZoo() {
@@ -195,6 +184,33 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
             },
             null
         )
+    }
+
+    private fun grantReadPermission(selectedUri: Uri) {
+        try {
+            contentResolver.takePersistableUriPermission(
+                selectedUri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Persistable URI permission not available for $selectedUri", e)
+        }
+    }
+
+    private fun queryDisplayName(selectedUri: Uri): String? {
+        contentResolver.query(
+            selectedUri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val displayNameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (displayNameIndex >= 0 && cursor.moveToFirst()) {
+                return cursor.getString(displayNameIndex)
+            }
+        }
+        return null
     }
 
 }
