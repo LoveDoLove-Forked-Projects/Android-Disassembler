@@ -25,15 +25,25 @@ class HexViewLayoutTest {
 
         assertEquals(1, rows.size)
         assertEquals(16, rows[0].paddedHexValues.size)
+        assertEquals(16, rows[0].asciiValues.size)
         assertEquals(listOf("41", "42", "43"), rows[0].paddedHexValues.take(3))
         assertTrue(rows[0].paddedHexValues.drop(3).all { it == "" })
+        assertEquals(listOf("A", "B", "C"), rows[0].asciiValues.take(3))
+        assertTrue(rows[0].asciiValues.drop(3).all { it == "" })
     }
 
     @Test
     fun `ascii cells convert printable bytes and replace control bytes`() {
         val rows = buildHexRows(byteArrayOf(0x41, 0x20, 0x0A, 0x7F))
 
-        assertEquals(listOf("A", " ", ".", "."), rows.single().asciiValues)
+        assertEquals(listOf("A", " ", ".", "."), rows.single().asciiValues.take(4))
+    }
+
+    @Test
+    fun `buildHexRows formats high-bit bytes as two-digit hex`() {
+        val rows = buildHexRows(byteArrayOf(0xEE.toByte(), 0xFF.toByte(), 0x80.toByte()))
+
+        assertEquals(listOf("EE", "FF", "80"), rows.single().paddedHexValues.take(3))
     }
 
     @Test

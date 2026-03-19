@@ -209,7 +209,7 @@ fun BinaryDisasmTabContent(
         InfiniteList(onLoadMore = { firstVisibleItemIndex, lastVisibleItemIndex ->
             disasmData.setCurrentAddressByFirstItemIndex(firstVisibleItemIndex)
             disasmData.loadMore(lastVisibleItemIndex)
-        }, modifier = Modifier.fillMaxWidth(), listState = listState) {
+        }, modifier = Modifier.wrapContentWidth(), listState = listState) {
 
             stickyHeader {
                 BinaryDisasmHeader(disasmData)

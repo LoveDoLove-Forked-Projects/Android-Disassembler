@@ -38,11 +38,12 @@ data class HexRow(
 
 fun buildHexRows(bytes: ByteArray): List<HexRow> {
     return bytes.toList().chunked(BYTES_PER_ROW).mapIndexed { index, chunk ->
-        val paddedHex = chunk.map { "%02X".format(it) } + List(BYTES_PER_ROW - chunk.size) { "" }
+        val paddedHex = chunk.map { "%02X".format(it.toInt() and 0xFF) } +
+            List(BYTES_PER_ROW - chunk.size) { "" }
         val ascii = chunk.map { byte ->
             val charValue = byte.toInt().toChar()
             if (isPrintableChar(charValue)) charValue.toString() else "."
-        }
+        } + List(BYTES_PER_ROW - chunk.size) { "" }
         HexRow(
             offset = index * BYTES_PER_ROW,
             bytes = chunk,

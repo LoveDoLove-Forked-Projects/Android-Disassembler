@@ -81,6 +81,7 @@ android {
             filters {
                 engines {
                     include 'spek2'
+                    include 'junit-jupiter'
                 }
             }
             jacocoOptions {

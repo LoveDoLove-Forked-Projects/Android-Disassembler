@@ -145,11 +145,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val app = getApplication<Application>()
                 app.contentResolver.openInputStream(uri).use { inStream ->
+                    requireNotNull(inStream) { "Failed to open content URI: $uri" }
                     val fileName = resolveImportedFileName(app, uri, displayName)
                     val file = app.filesDir.resolve("imports").resolve(fileName)
                     file.parentFile?.mkdirs()
                     file.outputStream().use { fileOut ->
-                        inStream?.copyTo(fileOut)
+                        inStream.copyTo(fileOut)
                     }
                     val project = ProjectManager.newProject(
                         file,
