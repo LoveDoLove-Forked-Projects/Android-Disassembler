@@ -59,20 +59,6 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
             val ed = sp.edit()
             ed.putString("PaletteName", name).apply()
             ColorHelper.setPalette(name)
-        } else if ("filepicker" == key) {
-            val value: Int = (p2 as String).toInt()
-            val sp = context!!.getSharedPreferences(MainActivity.SETTINGKEY, Context.MODE_PRIVATE)
-            val ed = sp.edit()
-            /*switch(val)
-			{
-				case 0:
-
-					//CodeKidX
-					break;
-				case 1:
-					//root
-					break;
-			}*/ed.putInt("Picker", value).apply()
         }
         return false
     }
@@ -131,8 +117,6 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
                 false
             }
         lp.onPreferenceChangeListener = this
-//        val lp2 = findPreference<ListPreference>("filepicker")
-//        lp2!!.onPreferenceChangeListener = this
         val scrn = findPreference<Preference>("openscrn")
         scrn?.setOnPreferenceClickListener {
             LibsBuilder()
