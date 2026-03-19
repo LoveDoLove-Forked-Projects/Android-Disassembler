@@ -17,6 +17,12 @@ This repository is under active maintenance again.
 - Android compatibility work is in progress, with SAF-based file import preferred over legacy external storage access on modern Android.
 - Issue triage and maintenance docs live under `docs/maintenance/`.
 
+## Preview builds
+
+- Every CI run uploads a debug APK artifact in GitHub Actions.
+- A separate preview workflow can publish a rolling `Preview latest` prerelease with a debug-signed APK for people who want to try the newest branch build before a formal release.
+- Formal release assets stay on the normal GitHub Releases flow.
+
 Android Disassembler is an application that is able to analyze several types of files such as APK files, dex files, shared libraries (aka .so files) (NDK, JNI), windows PE files(EXE, DLLs, SYSs, etc..), linux executables, object files and much more. These app features are based on [capstone library](https://github.com/aquynh/capstone), [elf](https://github.com/serge1/ELFIO) [parser](https://github.com/jawi/java-binutils), [PE parser](https://github.com/kichik/pecoff4j), [backsmali](https://github.com/JesusFreke/smali), and [facile reflector](https://github.com/TomSmartBishop/facile-api).
 
 [<img src="https://play.google.com/intl/en_us/badges/images/apps/en-play-badge-border.png" width="200" alt="Get Android Disassembler on Google Play" />](https://play.google.com/store/apps/details?id=com.kyhsgeekcode.disassembler "Get Android Disassembler on Google Play")
