@@ -31,8 +31,35 @@ class BinaryOverviewViewModel {
 //    val parsedFile: ParsedFile
 }
 
+data class BinaryManualSetupConfig(
+    val codeSectionBase: Long,
+    val codeSectionLimit: Long,
+    val entryPoint: Long,
+    val codeVirtAddr: Long,
+    val machineType: MachineType
+) {
+    companion object {
+        fun from(parsedFile: AbstractFile): BinaryManualSetupConfig {
+            return BinaryManualSetupConfig(
+                codeSectionBase = parsedFile.codeSectionBase,
+                codeSectionLimit = parsedFile.codeSectionLimit,
+                entryPoint = parsedFile.entryPoint,
+                codeVirtAddr = parsedFile.codeVirtAddr,
+                machineType = parsedFile.machineType
+            )
+        }
+    }
+}
+
+fun requiresDisassemblyReload(
+    previous: BinaryManualSetupConfig,
+    current: BinaryManualSetupConfig
+): Boolean {
+    return previous != current
+}
+
 @Composable
-fun BinaryOverviewTabContent(parsedFile: AbstractFile) {
+fun BinaryOverviewTabContent(data: BinaryTabData, parsedFile: AbstractFile) {
     var isEnabled by remember { mutableStateOf(false) }
     var codeSectionBase by remember { mutableStateOf(parsedFile.codeSectionBase) }
     var codeSectionLimit by remember { mutableStateOf(parsedFile.codeSectionLimit) }
@@ -85,11 +112,15 @@ fun BinaryOverviewTabContent(parsedFile: AbstractFile) {
                 "Entry point out of code section!"
             )
             if (codeVirtAddr < 0) throw Exception("Virtual address<0")
-            parsedFile.codeSectionBase = codeSectionBase
-            parsedFile.codeSectionLimit = codeSectionLimit
-            parsedFile.entryPoint = entryPoint
-            parsedFile.codeVirtAddr = codeVirtAddr
-            parsedFile.machineType = machineType
+            data.applyManualSetup(
+                BinaryManualSetupConfig(
+                    codeSectionBase = codeSectionBase,
+                    codeSectionLimit = codeSectionLimit,
+                    entryPoint = entryPoint,
+                    codeVirtAddr = codeVirtAddr,
+                    machineType = machineType
+                )
+            )
             isEnabled = false
         }, enabled = isEnabled) {
             Text(stringResource(R.string.finish_setup))

@@ -46,7 +46,7 @@ object Architecture {
                 CS_MODE_32
             )
             MachineType.PPC -> return intArrayOf(CS_ARCH_PPC)
-            MachineType.PPC64 -> return intArrayOf(CS_ARCH_PPC)
+            MachineType.PPC64 -> return intArrayOf(CS_ARCH_PPC, CS_MODE_64)
             MachineType.S390, MachineType.V800, MachineType.FR20, MachineType.RH32, MachineType.RCE, MachineType.ARM -> return intArrayOf(
                 CS_ARCH_ARM
             )
@@ -57,9 +57,10 @@ object Architecture {
                 CS_ARCH_X86
             )
             MachineType.MIPS_X -> return intArrayOf(CS_ARCH_MIPS)
-            MachineType.COLDFIRE, MachineType.m68HC12, MachineType.MMA, MachineType.PCP, MachineType.NCPU, MachineType.NDR1, MachineType.STARCORE, MachineType.ME16, MachineType.ST100, MachineType.TINYJ, MachineType.x86_64 -> return intArrayOf(
+            MachineType.COLDFIRE, MachineType.m68HC12, MachineType.MMA, MachineType.PCP, MachineType.NCPU, MachineType.NDR1, MachineType.STARCORE, MachineType.ME16, MachineType.ST100, MachineType.TINYJ -> return intArrayOf(
                 CS_ARCH_X86
             )
+            MachineType.x86_64 -> return intArrayOf(CS_ARCH_X86, CS_MODE_64)
             MachineType.PDSP, MachineType.FX66, MachineType.ST9PLUS, MachineType.ST7, MachineType.m68HC16, MachineType.m68HC11, MachineType.m68HC08, MachineType.m68HC05, MachineType.SVX, MachineType.ST19, MachineType.VAX, MachineType.CRIS, MachineType.JAVELIN, MachineType.FIREPATH, MachineType.ZSP, MachineType.MMIX, MachineType.HUANY, MachineType.PRISM, MachineType.AVR, MachineType.FR30, MachineType.D10V, MachineType.D30V, MachineType.V850, MachineType.M32R, MachineType.MN10300, MachineType.MN10200, MachineType.PJ, MachineType.OPENRISC, MachineType.ARC_A5, MachineType.XTENSA, MachineType.AARCH64 -> return intArrayOf(
                 CS_ARCH_ARM64
             )

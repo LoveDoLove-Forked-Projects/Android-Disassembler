@@ -89,11 +89,40 @@ class BinaryTabData(val data: TabKind.Binary, val viewModelScope: CoroutineScope
         val abstractFile =
             AbstractFile.createInstance(ProjectDataStorage.resolveToRead(data.relPath)!!)
         _parsedFile.value = DataResult.Success(abstractFile)
-        val type = abstractFile.machineType // elf.header.machineType;
+        disasmData = createPreparedDisasmData(abstractFile)
+    }
+
+    fun applyManualSetup(config: BinaryManualSetupConfig) {
+        val parsedFileValue = parsedFile.value
+        val parsedFile = (parsedFileValue as? DataResult.Success)?.data ?: return
+        val previousConfig = BinaryManualSetupConfig.from(parsedFile)
+
+        parsedFile.codeSectionBase = config.codeSectionBase
+        parsedFile.codeSectionLimit = config.codeSectionLimit
+        parsedFile.entryPoint = config.entryPoint
+        parsedFile.codeVirtAddr = config.codeVirtAddr
+        parsedFile.machineType = config.machineType
+
+        if (!requiresDisassemblyReload(previousConfig, config)) {
+            return
+        }
+
+        viewModelScope.launch {
+            if (::disasmData.isInitialized) {
+                MainActivity.Finalize(disasmData.handle)
+            }
+            disasmData = createPreparedDisasmData(parsedFile)
+        }
+    }
+
+    private suspend fun createPreparedDisasmData(file: AbstractFile): BinaryDisasmData {
+        val type = file.machineType
         val archs = Architecture.getArchitecture(type)
         val arch = archs[0]
-        var mode = 0 /*CS_MODE_LITTLE_ENDIAN*/
-        if (archs.size == 2) mode = archs[1]
+        var mode = 0
+        if (archs.size >= 2) {
+            mode = archs[1]
+        }
         if (arch == Architecture.CS_ARCH_MAX || arch == Architecture.CS_ARCH_ALL) {
             throw Exception("No such arch!")
         } else {
@@ -101,8 +130,7 @@ class BinaryTabData(val data: TabKind.Binary, val viewModelScope: CoroutineScope
         }
 
         val handle = MainActivity.Open(arch, mode)
-        disasmData = BinaryDisasmData(abstractFile, handle)
-        disasmData.prepare()
+        return BinaryDisasmData(file, handle).also { it.prepare() }
     }
 
     inline fun <reified T : BinaryTabKind> setCurrentTab() {
@@ -223,7 +251,7 @@ fun BinaryTabContent(state: Int, data: BinaryTabData, viewModel: MainViewModel) 
                 data
             )
             is BinaryTabKind.BinaryImportSymbol -> BinaryImportSymbolTabContent(parsedFileValue.data)
-            is BinaryTabKind.BinaryOverview -> BinaryOverviewTabContent(parsedFileValue.data)
+            is BinaryTabKind.BinaryOverview -> BinaryOverviewTabContent(data, parsedFileValue.data)
             is BinaryTabKind.BinaryString -> TODO()
         }
         if (isShowJumpToDialog.value) {
@@ -274,5 +302,3 @@ fun BinaryTabContent(state: Int, data: BinaryTabData, viewModel: MainViewModel) 
 
 
 }
-
-
