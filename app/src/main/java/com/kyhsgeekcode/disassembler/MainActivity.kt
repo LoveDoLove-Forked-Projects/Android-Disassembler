@@ -67,7 +67,9 @@ class MainActivity : AppCompatActivity() {
         }
         //        setupUncaughtException()
         initNative()
-        handleViewActionIntent()
+        if (shouldHandleIncomingIntent(intent, savedInstanceState)) {
+            handleIncomingIntent(intent)
+        }
 
         setContent {
             MainScreen(viewModel = viewModel)
@@ -80,12 +82,20 @@ class MainActivity : AppCompatActivity() {
         ColorHelper.populatePalettes(context = this)
     }
 
-    private fun handleViewActionIntent() {
-        val intent = intent ?: return
-        val incomingUri = extractIncomingUri(intent) ?: return
-        takePersistableReadPermissionIfPossible(incomingUri, intent.flags)
-        intent.putExtra("uri", incomingUri)
-        viewModel.onSelectIntent(intent)
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (hasIncomingIntent(intent)) {
+            handleIncomingIntent(intent)
+        }
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        val incomingIntent = intent ?: return
+        val incomingUri = extractIncomingUri(incomingIntent) ?: return
+        takePersistableReadPermissionIfPossible(incomingUri, incomingIntent.flags)
+        incomingIntent.putExtra("uri", incomingUri)
+        viewModel.onSelectIntent(incomingIntent)
     }
 
     private fun takePersistableReadPermissionIfPossible(uri: Uri, intentFlags: Int) {
@@ -101,7 +111,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupUncaughtException() {
-        Thread.setDefaultUncaughtExceptionHandler { p1: Thread?, p2: Throwable ->
+        Thread.setDefaultUncaughtExceptionHandler { _: Thread?, p2: Throwable ->
             runOnUiThread {
                 Toast.makeText(this@MainActivity, Log.getStackTraceString(p2), Toast.LENGTH_SHORT)
                     .show()
@@ -180,4 +190,22 @@ private fun extractIncomingUri(intent: Intent): Uri? {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(Intent.EXTRA_STREAM)
         }
+}
+
+internal fun hasIncomingIntent(intent: Intent?): Boolean {
+    if (intent == null) {
+        return false
+    }
+    return extractIncomingUri(intent) != null
+}
+
+internal fun shouldHandleIncomingIntent(hasIncomingIntent: Boolean, hasSavedState: Boolean): Boolean {
+    return !hasSavedState && hasIncomingIntent
+}
+
+internal fun shouldHandleIncomingIntent(intent: Intent?, savedInstanceState: Bundle?): Boolean {
+    return shouldHandleIncomingIntent(
+        hasIncomingIntent = hasIncomingIntent(intent),
+        hasSavedState = savedInstanceState != null
+    )
 }
