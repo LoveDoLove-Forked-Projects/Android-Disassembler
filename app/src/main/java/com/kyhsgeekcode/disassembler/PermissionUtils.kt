@@ -4,7 +4,9 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -92,4 +94,23 @@ fun storagePermissionsForSdk(sdkInt: Int): Array<String> {
     } else {
         emptyArray()
     }
+}
+
+fun persistableUriPermissionFlags(uri: Uri?, intentFlags: Int): Int {
+    return persistableUriPermissionFlags(uri?.scheme, intentFlags)
+}
+
+fun persistableUriPermissionFlags(uriScheme: String?, intentFlags: Int): Int {
+    if (uriScheme != "content") {
+        return 0
+    }
+
+    if (intentFlags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION == 0) {
+        return 0
+    }
+
+    return intentFlags and (
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
 }

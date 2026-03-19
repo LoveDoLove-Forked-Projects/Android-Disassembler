@@ -5,6 +5,8 @@ package com.kyhsgeekcode.disassembler
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.util.Log
@@ -79,13 +81,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleViewActionIntent() {
-        // https://www.androidpub.com/1351553
         val intent = intent ?: return
-        if (intent.action == Intent.ACTION_VIEW) { // User opened this app from file browser
-            intent.data?.let {
-                intent.putExtra("uri", it)
-                viewModel.onSelectIntent(intent)
-            }
+        val incomingUri = extractIncomingUri(intent) ?: return
+        takePersistableReadPermissionIfPossible(incomingUri, intent.flags)
+        intent.putExtra("uri", incomingUri)
+        viewModel.onSelectIntent(intent)
+    }
+
+    private fun takePersistableReadPermissionIfPossible(uri: Uri, intentFlags: Int) {
+        val persistFlags = persistableUriPermissionFlags(uri, intentFlags)
+        if (persistFlags == 0) {
+            return
+        }
+        try {
+            contentResolver.takePersistableUriPermission(uri, persistFlags)
+        } catch (e: SecurityException) {
+            Timber.w(e, "Persistable URI permission not available for %s", uri)
         }
     }
 
@@ -159,4 +170,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     external fun Init(): Int
+}
+
+private fun extractIncomingUri(intent: Intent): Uri? {
+    return intent.data
+        ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(Intent.EXTRA_STREAM)
+        }
 }
