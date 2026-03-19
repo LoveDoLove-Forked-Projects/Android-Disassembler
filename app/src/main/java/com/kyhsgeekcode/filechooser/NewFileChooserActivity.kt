@@ -14,9 +14,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.kyhsgeekcode.disassembler.ProgressHandler
 import com.kyhsgeekcode.disassembler.databinding.ActivityNewFileChooserBinding
 import com.kyhsgeekcode.disassembler.preference.PowerUserModeSettings
+import com.kyhsgeekcode.disassembler.project.models.ProjectType
 import com.kyhsgeekcode.disassembler.showYesNoDialog
 import com.kyhsgeekcode.download
 import com.kyhsgeekcode.filechooser.model.FileItem
+import com.kyhsgeekcode.filechooser.model.FileItemApp
 import com.tingyik90.snackprogressbar.SnackProgressBar
 import com.tingyik90.snackprogressbar.SnackProgressBarManager
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +33,9 @@ import java.net.URL
 class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
     companion object {
         const val EXTRA_POWER_USER_MODE = "power_user_mode"
+        const val EXTRA_FILE_PATH = "selected_file_path"
+        const val EXTRA_NATIVE_FILE_PATH = "selected_native_file_path"
+        const val EXTRA_PROJECT_TYPE = "selected_project_type"
     }
 
     private var _binding: ActivityNewFileChooserBinding? = null
@@ -88,17 +93,17 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
     }
 
     fun openAsProject(item: FileItem) {
-        val resultIntent = Intent()
-        resultIntent.putExtra("fileItem", item)
-        resultIntent.putExtra("openProject", true)
+        val resultIntent = selectedFileResultIntent(item).apply {
+            putExtra("openProject", true)
+        }
         setResult(Activity.RESULT_OK, resultIntent)
         finish()
     }
 
     fun openRaw(item: FileItem) {
-        val resultIntent = Intent()
-        resultIntent.putExtra("fileItem", item)
-        resultIntent.putExtra("openProject", false)
+        val resultIntent = selectedFileResultIntent(item).apply {
+            putExtra("openProject", false)
+        }
         setResult(Activity.RESULT_OK, resultIntent)
         finish()
     }
@@ -222,6 +227,25 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
             }
         }
         return null
+    }
+
+    private fun selectedFileResultIntent(item: FileItem): Intent {
+        val file = requireNotNull(item.file) { "Cannot return chooser result without a backing file" }
+        return Intent().apply {
+            putExtra(EXTRA_FILE_PATH, file.absolutePath)
+            putExtra(EXTRA_PROJECT_TYPE, projectTypeFor(item))
+            if (item is FileItemApp) {
+                putExtra(EXTRA_NATIVE_FILE_PATH, item.nativeFile.absolutePath)
+            }
+        }
+    }
+
+    private fun projectTypeFor(item: FileItem): String {
+        return if (item is FileItemApp) {
+            ProjectType.APK
+        } else {
+            ProjectType.UNKNOWN
+        }
     }
 
 }

@@ -30,6 +30,7 @@ import com.kyhsgeekcode.disassembler.ui.TabKind
 import com.kyhsgeekcode.disassembler.ui.tabs.*
 import com.kyhsgeekcode.filechooser.model.FileItem
 import com.kyhsgeekcode.filechooser.model.FileItemApp
+import com.kyhsgeekcode.filechooser.NewFileChooserActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -117,6 +118,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onSelectIntent(intent: Intent) {
         Timber.d("onActivityResultOk")
         _openAsProject.value = intent.getBooleanExtra("openProject", false)
+        val selectedFilePayload = selectedFileIntentPayload(intent)
+        if (selectedFilePayload != null) {
+            onSelectFilePayload(selectedFilePayload)
+            return
+        }
         val fi = intent.serializableExtraCompat<FileItem>("fileItem")
         if (fi != null) {
             onSelectFileItem(fi)
@@ -130,16 +136,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun onSelectFileItem(fileItem: FileItem) {
-        _file.value = fileItem.file ?: run {
+        val file = fileItem.file ?: run {
             Logger.e(TAG, "Failed to load fileItem: $fileItem")
             return@onSelectFileItem
         }
-        _nativeFile.value = if (fileItem is FileItemApp) {
-            fileItem.nativeFile
-        } else {
-            null
-        }
-        _projectType.value = fileItemTypeToProjectType(fileItem)
+        onSelectFilePayload(
+            SelectedFileIntentPayload(
+                filePath = file.absolutePath,
+                nativeFilePath = (fileItem as? FileItemApp)?.nativeFile?.absolutePath,
+                projectType = fileItemTypeToProjectType(fileItem)
+            )
+        )
+    }
+
+    private fun onSelectFilePayload(payload: SelectedFileIntentPayload) {
+        _file.value = File(payload.filePath)
+        _nativeFile.value = payload.nativeFilePath?.let(::File)
+        _projectType.value = payload.projectType
         _askCopy.value = true
     }
 
@@ -413,6 +426,33 @@ private inline fun <reified T : java.io.Serializable> Intent.serializableExtraCo
         @Suppress("DEPRECATION")
         getSerializableExtra(key) as? T
     }
+}
+
+internal data class SelectedFileIntentPayload(
+    val filePath: String,
+    val nativeFilePath: String?,
+    val projectType: String
+)
+
+internal fun selectedFileIntentPayload(intent: Intent): SelectedFileIntentPayload? {
+    return selectedFileIntentPayload(
+        filePath = intent.getStringExtra(NewFileChooserActivity.EXTRA_FILE_PATH),
+        nativeFilePath = intent.getStringExtra(NewFileChooserActivity.EXTRA_NATIVE_FILE_PATH),
+        projectType = intent.getStringExtra(NewFileChooserActivity.EXTRA_PROJECT_TYPE)
+    )
+}
+
+internal fun selectedFileIntentPayload(
+    filePath: String?,
+    nativeFilePath: String?,
+    projectType: String?
+): SelectedFileIntentPayload? {
+    val resolvedFilePath = filePath ?: return null
+    return SelectedFileIntentPayload(
+        filePath = resolvedFilePath,
+        nativeFilePath = nativeFilePath,
+        projectType = projectType ?: ProjectType.UNKNOWN
+    )
 }
 
 
