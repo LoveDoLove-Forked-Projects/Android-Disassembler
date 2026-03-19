@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Parcelable
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,6 +19,8 @@ import com.kyhsgeekcode.disassembler.*
 import com.kyhsgeekcode.disassembler.project.ProjectDataStorage
 import com.kyhsgeekcode.disassembler.project.ProjectManager
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceKind
 import com.kyhsgeekcode.disassembler.project.models.ProjectType
 import com.kyhsgeekcode.disassembler.ui.FileDrawerTreeItem
 import com.kyhsgeekcode.disassembler.ui.TabData
@@ -109,13 +114,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onSelectIntent(intent: Intent) {
         Timber.d("onActivityResultOk")
         _openAsProject.value = intent.getBooleanExtra("openProject", false)
-        val fi = intent.getSerializableExtra("fileItem") as? FileItem
+        val fi = intent.serializableExtraCompat<FileItem>("fileItem")
         if (fi != null) {
             onSelectFileItem(fi)
         } else {
             val displayName = intent.getStringExtra("displayName")
-            val uri = intent.getParcelableExtra("uri") as Uri?
-                ?: intent.getBundleExtra("extras")?.get(Intent.EXTRA_STREAM) as Uri?
+            val uri = intent.parcelableExtraCompat<Uri>("uri")
+                ?: intent.extras.parcelableExtraCompat(Intent.EXTRA_STREAM)
                 ?: return
             onSelectUri(uri, displayName)
         }
@@ -146,8 +151,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     file.outputStream().use { fileOut ->
                         inStream?.copyTo(fileOut)
                     }
-                    val project =
-                        ProjectManager.newProject(file, ProjectType.UNKNOWN, file.name, true)
+                    val project = ProjectManager.newProject(
+                        file,
+                        ProjectType.UNKNOWN,
+                        file.name,
+                        true,
+                        ProjectSourceDescriptor(ProjectSourceKind.CONTENT_URI, uri.toString())
+                    )
                     _selectedFilePath.value = project.sourceFilePath
                     _currentProject.value = project
                 }
@@ -349,6 +359,35 @@ private fun resolveImportedFileName(
         }
         ?: uri.lastPathSegment
     return sanitizeImportedFileName(displayName)
+}
+
+private inline fun <reified T : Parcelable> Intent.parcelableExtraCompat(key: String): T? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableExtra(key, T::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelableExtra(key)
+    }
+}
+
+private inline fun <reified T : Parcelable> Bundle?.parcelableExtraCompat(key: String): T? {
+    return if (this == null) {
+        null
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelable(key, T::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelable(key)
+    }
+}
+
+private inline fun <reified T : java.io.Serializable> Intent.serializableExtraCompat(key: String): T? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getSerializableExtra(key, T::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getSerializableExtra(key) as? T
+    }
 }
 
 

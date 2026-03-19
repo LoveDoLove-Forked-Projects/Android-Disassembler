@@ -5,6 +5,8 @@ import android.util.Log
 import com.kyhsgeekcode.disassembler.Logger
 import com.kyhsgeekcode.disassembler.copyDirectory
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceKind
 import com.kyhsgeekcode.extractZip
 import com.kyhsgeekcode.isAccessible
 import com.kyhsgeekcode.saveAsZip
@@ -85,7 +87,11 @@ object ProjectManager {
         targetFileOrFolder: File,
         projectType: String,
         projectName: String,
-        copy: Boolean = true
+        copy: Boolean = true,
+        sourceDescriptor: ProjectSourceDescriptor = ProjectSourceDescriptor(
+            ProjectSourceKind.FILE_PATH,
+            targetFileOrFolder.absolutePath
+        )
     ): ProjectModel {
 //        require(if (useDefault) true else file.isDirectory)
         val projectModel: ProjectModel
@@ -113,7 +119,13 @@ object ProjectManager {
         }
 
         projectModel =
-            ProjectModel(projectName, genFolder.path, projectType, determinedSourceFolder.path)
+            ProjectModel(
+                name = projectName,
+                generatedFolder = genFolder.path,
+                projectType = projectType,
+                sourceFilePath = determinedSourceFolder.path,
+                sourceDescriptor = sourceDescriptor
+            )
 
         projectModels[projectInfoFile.path] = projectModel
         projectPaths.add(projectInfoFile.absolutePath)
