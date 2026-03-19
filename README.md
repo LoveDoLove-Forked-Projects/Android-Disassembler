@@ -9,6 +9,14 @@
 
 Analyze malicious app on your phone
 
+## Maintenance status
+
+This repository is under active maintenance again.
+
+- The baseline now expects initialized git submodules before building.
+- Android compatibility work is in progress, with SAF-based file import preferred over legacy external storage access on modern Android.
+- Issue triage and maintenance docs live under `docs/maintenance/`.
+
 Android Disassembler is an application that is able to analyze several types of files such as APK files, dex files, shared libraries (aka .so files) (NDK, JNI), windows PE files(EXE, DLLs, SYSs, etc..), linux executables, object files and much more. These app features are based on [capstone library](https://github.com/aquynh/capstone), [elf](https://github.com/serge1/ELFIO) [parser](https://github.com/jawi/java-binutils), [PE parser](https://github.com/kichik/pecoff4j), [backsmali](https://github.com/JesusFreke/smali), and [facile reflector](https://github.com/TomSmartBishop/facile-api).
 
 [<img src="https://play.google.com/intl/en_us/badges/images/apps/en-play-badge-border.png" width="200" alt="Get Android Disassembler on Google Play" />](https://play.google.com/store/apps/details?id=com.kyhsgeekcode.disassembler "Get Android Disassembler on Google Play")
@@ -73,7 +81,8 @@ Android Disassembler is an application that is able to analyze several types of 
 ### Feature requests are welcomed!
 
 # Build & Pull request
- - Use Android studio.
+ - Initialize submodules first: `git submodule update --init --recursive`
+ - Use Android Studio or Gradle with a configured Android SDK/NDK.
  - Any improvements are welcomed!
 
 # Open Source
