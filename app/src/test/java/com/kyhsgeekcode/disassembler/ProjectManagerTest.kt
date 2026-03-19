@@ -66,6 +66,23 @@ class ProjectManagerTest {
         assertEquals("content://samples/app.apk", project.resolvedSourceDescriptor.location)
     }
 
+    @Test
+    fun `sourceFile exposes sourceFilePath as File`() {
+        val project = projectModelFor("sample.apk")
+
+        assertEquals(File("sample.apk"), project.sourceFile)
+    }
+
+    @Test
+    fun `sourceLibrariesDirectory appends libs suffix next to source file`() {
+        val project = projectModelFor("sample.apk")
+
+        assertEquals(
+            File("${project.sourceFile.absolutePath}_libs"),
+            project.sourceLibrariesDirectory
+        )
+    }
+
     private fun projectModelFor(
         sourceName: String,
         sourceDescriptor: ProjectSourceDescriptor? = null

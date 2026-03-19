@@ -55,6 +55,12 @@ data class ProjectModel(
     val rootFile: File
         get() = requireNotNull(File(generatedFolder).parentFile)
 
+    val sourceFile: File
+        get() = File(sourceFilePath)
+
+    val sourceLibrariesDirectory: File
+        get() = File("${sourceFile.absolutePath}_libs")
+
     val resolvedSourceDescriptor: ProjectSourceDescriptor
         get() = sourceDescriptor ?: legacyProjectSourceDescriptor(sourceFilePath)
 }

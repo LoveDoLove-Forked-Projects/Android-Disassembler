@@ -454,7 +454,7 @@ fun fileItemTypeToProjectType(fileItem: FileItem): String {
 
 fun copyNativeDirToProject(nativeFile: File?, project: ProjectModel) {
     if (nativeFile != null && nativeFile.exists() && nativeFile.canRead()) {
-        val targetFolder = File(project.sourceFilePath + "_libs")
+        val targetFolder = project.sourceLibrariesDirectory
         targetFolder.mkdirs()
         var targetFile = targetFolder.resolve(nativeFile.name)
         var i = 0

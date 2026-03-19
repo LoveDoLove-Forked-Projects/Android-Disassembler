@@ -63,10 +63,10 @@ class FileDrawerListAdapter(val progressHandler: ProgressHandler) {
             }
             DrawerItemType.PROJECT -> {
                 val projectModel = item.tag as ProjectModel
-                val file = File(projectModel.sourceFilePath)
+                val file = projectModel.sourceFile
                 items.add(FileDrawerListItem(file, newLevel))
                 if (projectModel.projectType == ProjectType.APK) {
-                    val libsFolder = File("${file.absolutePath}_libs")
+                    val libsFolder = projectModel.sourceLibrariesDirectory
                     if (libsFolder.exists()) {
                         items.add(FileDrawerListItem(libsFolder, newLevel))
                     }

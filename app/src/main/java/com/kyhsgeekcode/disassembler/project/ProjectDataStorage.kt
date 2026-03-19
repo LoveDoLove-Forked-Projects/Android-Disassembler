@@ -36,7 +36,7 @@ object ProjectDataStorage {
     fun resolveToRead(relPath: String): File? {
         requireNotNull(ProjectManager.currentProject)
         val paths = relPath.split("/")
-        val projectOrig = File(ProjectManager.currentProject!!.sourceFilePath)
+        val projectOrig = ProjectManager.currentProject!!.sourceFile
         var file = projectOrig.resolve(relPath)
         Log.d(TAG, "Orig cand: $file")
         if (file.exists() && !file.isDirectory)
@@ -47,7 +47,7 @@ object ProjectDataStorage {
                 return newfile
         }
         Log.d(TAG, "Could not find from orig:$relPath")
-        file = projectOrig.parentFile.resolve(relPath)
+        file = requireNotNull(projectOrig.parentFile).resolve(relPath)
         if (file.exists() && !file.isDirectory)
             return file
         Log.d(TAG, "Could not find from libs: $file")
