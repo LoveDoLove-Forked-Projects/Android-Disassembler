@@ -16,6 +16,8 @@ import at.pollaknet.api.facile.symtab.symbols.Method
 import com.kyhsgeekcode.FileExtensions
 import com.kyhsgeekcode.TAG
 import com.kyhsgeekcode.disassembler.*
+import com.kyhsgeekcode.disassembler.exporting.buildProjectExportFileName
+import com.kyhsgeekcode.disassembler.exporting.copyFileToDocument
 import com.kyhsgeekcode.disassembler.project.ProjectDataStorage
 import com.kyhsgeekcode.disassembler.project.ProjectManager
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
@@ -36,6 +38,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
+import java.io.IOException
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -302,6 +305,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissSearchForStringsDialog() {
         _showSearchForStrings.value = ShowSearchForStringsDialog.NotShown
+    }
+
+    suspend fun exportCurrentProject(destinationUri: Uri): Result<Unit> {
+        val project = currentProject.value ?: return Result.failure(
+            IllegalStateException("No project is open")
+        )
+        return runCatching {
+            val application = getApplication<Application>()
+            val tempArchive = withContext(Dispatchers.IO) {
+                val exportDir = application.cacheDir.resolve("exports")
+                exportDir.mkdirs()
+                val outFile = exportDir.resolve(buildProjectExportFileName(project.name))
+                if (ProjectManager.exportArchive(project, outFile).not()) {
+                    throw IOException("Failed to export project archive")
+                }
+                outFile
+            }
+            withContext(Dispatchers.IO) {
+                copyFileToDocument(application.contentResolver, tempArchive, destinationUri)
+            }
+        }
     }
 
     fun reallySearchForStrings(from: String, to: String) {

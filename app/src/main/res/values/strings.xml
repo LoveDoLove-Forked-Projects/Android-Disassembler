@@ -69,7 +69,10 @@
     <string name="override_autosetup">Override autosetup</string>
     <string name="show_details">Show details</string>
     <string name="save_details_to_file">Save Details to file</string>
+    <string name="details_saved">Details saved</string>
     <string name="export">Export</string>
+    <string name="export_project">Export project</string>
+    <string name="project_exported">Project exported</string>
     <string name="choose_columns">Choose columns</string>
     <string name="property">Property</string>
     <string name="open_calculator">Calculator</string>

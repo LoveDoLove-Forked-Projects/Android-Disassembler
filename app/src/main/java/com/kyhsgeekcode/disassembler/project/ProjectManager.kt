@@ -3,6 +3,7 @@ package com.kyhsgeekcode.disassembler.project
 import android.content.Context
 import android.util.Log
 import com.kyhsgeekcode.disassembler.Logger
+import com.kyhsgeekcode.disassembler.exporting.buildProjectExportFileName
 import com.kyhsgeekcode.disassembler.copyDirectory
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
 import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
@@ -191,13 +192,13 @@ object ProjectManager {
      * @return true if success else false
      */
     fun export(projectModel: ProjectModel, outDir: File): Boolean {
+        val outZipFile = outDir.resolve(buildProjectExportFileName(projectModel.name))
+        return exportArchive(projectModel, outZipFile)
+    }
+
+    fun exportArchive(projectModel: ProjectModel, outZipFile: File): Boolean {
         require(projectModelToPath.contains(projectModel))
         save(projectModel)
-        // projectModel.sourceFilePath
-        // projectModel.baseFolder
-        // projectModel itself
-        val outZipFile =
-            outDir.resolve("DisassemblerProject_${projectModel.name.toValidFileName()}.zip")
         saveAsZip(
             outZipFile,
             Pair(projectModel.sourceFilePath, "sourceFilePath"),

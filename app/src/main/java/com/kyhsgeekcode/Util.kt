@@ -165,46 +165,52 @@ suspend fun extract(
     }
 
 fun String.toValidFileName(): String {
-    return this.replace("[\\\\/:*?\"<>|]", "")
+    return this.replace(Regex("[\\\\/:*?\"<>|]"), "")
 }
 
 // MAYBE BUG : relName to entry name
 fun saveAsZip(dest: File, vararg sources: Pair<String, String>) {
-    val archiveStream: OutputStream = FileOutputStream(dest)
-    val archive =
-        ArchiveStreamFactory().createArchiveOutputStream(ArchiveStreamFactory.ZIP, archiveStream)
-    for (source in sources) {
-        val from = source.first
-        val to = source.second
-        val fromFile = File(from)
-        val toFile = File(to)
-        if (fromFile.isDirectory) {
-            val fileList = fromFile.listFiles() // .listOrEmpty(fromFile, null, true)
-            for (file in fileList) {
-                val relName: String = getEntryName(fromFile, file)
-                val splitName = relName.split(File.separatorChar)
-                val entryName = toFile.resolve(
-                    splitName.subList(1, splitName.size - 1).joinToString(File.separator)
-                ).absolutePath
+    dest.parentFile?.mkdirs()
+    FileOutputStream(dest).use { archiveStream ->
+        val archive =
+            ArchiveStreamFactory().createArchiveOutputStream(ArchiveStreamFactory.ZIP, archiveStream)
+        for ((from, to) in sources) {
+            addPathToZip(archive, File(from), to)
+        }
+        archive.close()
+    }
+}
+
+private fun addPathToZip(
+    archive: org.apache.commons.compress.archivers.ArchiveOutputStream,
+    fromFile: File,
+    targetPath: String
+) {
+    val normalizedTargetPath = targetPath.replace('\\', '/').trim('/')
+    if (fromFile.isDirectory) {
+        fromFile.walkTopDown()
+            .filter { it.isFile }
+            .forEach { file ->
+                val relativePath = file.relativeTo(fromFile).invariantSeparatorsPath
+                val entryName = listOf(normalizedTargetPath, relativePath)
+                    .filter { it.isNotEmpty() }
+                    .joinToString("/")
                 val entry = ZipArchiveEntry(entryName)
                 archive.putArchiveEntry(entry)
-                val input = BufferedInputStream(FileInputStream(file))
-                IOUtils.copy(input, archive)
-                input.close()
+                BufferedInputStream(FileInputStream(file)).use { input ->
+                    IOUtils.copy(input, archive)
+                }
                 archive.closeArchiveEntry()
             }
-        } else {
-            val entryName = to
-            val entry = ZipArchiveEntry(entryName)
-            archive.putArchiveEntry(entry)
-            val input = BufferedInputStream(FileInputStream(fromFile))
-            IOUtils.copy(input, archive)
-            input.close()
-            archive.closeArchiveEntry()
-        }
+        return
     }
-    archive.close()
-    archiveStream.close()
+
+    val entry = ZipArchiveEntry(normalizedTargetPath)
+    archive.putArchiveEntry(entry)
+    BufferedInputStream(FileInputStream(fromFile)).use { input ->
+        IOUtils.copy(input, archive)
+    }
+    archive.closeArchiveEntry()
 }
 
 /**

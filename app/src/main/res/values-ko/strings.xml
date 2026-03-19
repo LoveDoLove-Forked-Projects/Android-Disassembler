@@ -46,7 +46,10 @@
     <string name="override_autosetup">오버라이드</string>
     <string name="show_details">상세 정보 표시</string>
     <string name="save_details_to_file">상세 정보 저장</string>
+    <string name="details_saved">상세 정보를 저장했습니다</string>
     <string name="export">내보내기</string>
+    <string name="export_project">프로젝트 내보내기</string>
+    <string name="project_exported">프로젝트를 내보냈습니다</string>
     <string name="choose_columns">열 선택</string>
     <string name="property">속성</string>
     <string name="open_calculator">계산기</string>

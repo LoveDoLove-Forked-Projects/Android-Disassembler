@@ -2,6 +2,7 @@ package com.kyhsgeekcode.disassembler.ui
 
 import android.app.Activity
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,19 +30,23 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.kyhsgeekcode.disassembler.R
+import com.kyhsgeekcode.disassembler.exporting.buildProjectExportFileName
 import com.kyhsgeekcode.disassembler.importing.DefaultImportEntryPointCatalog
 import com.kyhsgeekcode.disassembler.importing.ImportEntryPoint
 import com.kyhsgeekcode.disassembler.preference.PowerUserModeSettings
 import com.kyhsgeekcode.disassembler.viewmodel.MainViewModel
 import com.kyhsgeekcode.filechooser.NewFileChooserActivity
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProjectOverview(viewModel: MainViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = context as? LifecycleOwner
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var powerUserModeEnabled by remember {
         mutableStateOf(PowerUserModeSettings.isEnabled(context))
     }
+    val currentProject by viewModel.currentProject.collectAsState()
 
     val advancedImportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -70,6 +75,21 @@ fun ProjectOverview(viewModel: MainViewModel) {
                     putExtra("openProject", false)
                 }
             )
+        }
+    }
+    val exportProjectLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { destinationUri ->
+        if (destinationUri != null) {
+            scope.launch {
+                val result = viewModel.exportCurrentProject(destinationUri)
+                val message = if (result.isSuccess) {
+                    context.getString(R.string.project_exported)
+                } else {
+                    context.getString(R.string.fail_exportzip)
+                }
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -117,6 +137,18 @@ fun ProjectOverview(viewModel: MainViewModel) {
                 ) {
                     Text(text = stringResource(id = entryPoint.labelRes))
                 }
+            }
+        }
+        if (currentProject != null) {
+            Button(
+                modifier = Modifier.padding(top = 12.dp),
+                onClick = {
+                    exportProjectLauncher.launch(
+                        buildProjectExportFileName(currentProject!!.name)
+                    )
+                }
+            ) {
+                Text(text = stringResource(id = R.string.export_project))
             }
         }
     }
