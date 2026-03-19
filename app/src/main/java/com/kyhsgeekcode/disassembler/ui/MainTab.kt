@@ -2,10 +2,13 @@ package com.kyhsgeekcode.disassembler.ui
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +36,7 @@ import com.kyhsgeekcode.disassembler.R
 import com.kyhsgeekcode.disassembler.exporting.buildProjectExportFileName
 import com.kyhsgeekcode.disassembler.importing.DefaultImportEntryPointCatalog
 import com.kyhsgeekcode.disassembler.importing.ImportEntryPoint
+import com.kyhsgeekcode.disassembler.importing.legacyPermissionsForImportEntryPoint
 import com.kyhsgeekcode.disassembler.preference.PowerUserModeSettings
 import com.kyhsgeekcode.disassembler.viewmodel.MainViewModel
 import com.kyhsgeekcode.filechooser.NewFileChooserActivity
@@ -56,6 +60,15 @@ fun ProjectOverview(viewModel: MainViewModel) {
             i?.run {
                 viewModel.onSelectIntent(this)
             }
+        }
+    }
+    val legacyPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grantResults ->
+        if (grantResults.values.all { it }) {
+            launchAdvancedImportActivity(context, advancedImportLauncher)
+        } else {
+            Toast.makeText(context, R.string.permission_needed, Toast.LENGTH_LONG).show()
         }
     }
     val safImportLauncher = rememberLauncherForActivityResult(
@@ -131,7 +144,8 @@ fun ProjectOverview(viewModel: MainViewModel) {
                             entryPoint,
                             context = context,
                             safImportLauncher = safImportLauncher,
-                            advancedImportLauncher = advancedImportLauncher
+                            advancedImportLauncher = advancedImportLauncher,
+                            legacyPermissionLauncher = legacyPermissionLauncher
                         )
                     }
                 ) {
@@ -198,15 +212,38 @@ private fun launchImportEntryPoint(
     entryPoint: ImportEntryPoint,
     context: android.content.Context,
     safImportLauncher: ManagedActivityResultLauncher<Array<String>, android.net.Uri?>,
-    advancedImportLauncher: ManagedActivityResultLauncher<Intent, androidx.activity.result.ActivityResult>
+    advancedImportLauncher: ManagedActivityResultLauncher<Intent, androidx.activity.result.ActivityResult>,
+    legacyPermissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>
 ) {
     when (entryPoint) {
         ImportEntryPoint.SafImport -> safImportLauncher.launch(arrayOf("*/*"))
         ImportEntryPoint.AdvancedImport -> {
-            val intent = Intent(context, NewFileChooserActivity::class.java).apply {
-                putExtra(NewFileChooserActivity.EXTRA_POWER_USER_MODE, true)
+            val requiredPermissions =
+                legacyPermissionsForImportEntryPoint(entryPoint, Build.VERSION.SDK_INT)
+            if (requiredPermissions.isNotEmpty() && !hasAllPermissions(context, requiredPermissions)) {
+                legacyPermissionLauncher.launch(requiredPermissions)
+            } else {
+                launchAdvancedImportActivity(context, advancedImportLauncher)
             }
-            advancedImportLauncher.launch(intent)
         }
+    }
+}
+
+private fun launchAdvancedImportActivity(
+    context: android.content.Context,
+    advancedImportLauncher: ManagedActivityResultLauncher<Intent, androidx.activity.result.ActivityResult>
+) {
+    val intent = Intent(context, NewFileChooserActivity::class.java).apply {
+        putExtra(NewFileChooserActivity.EXTRA_POWER_USER_MODE, true)
+    }
+    advancedImportLauncher.launch(intent)
+}
+
+private fun hasAllPermissions(
+    context: android.content.Context,
+    permissions: Array<String>
+): Boolean {
+    return permissions.all {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 }

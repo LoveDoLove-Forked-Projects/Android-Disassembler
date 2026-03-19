@@ -1,5 +1,6 @@
 package com.kyhsgeekcode.disassembler.importing
 
+import com.kyhsgeekcode.disassembler.storagePermissionsForSdk
 import com.kyhsgeekcode.disassembler.R
 
 sealed class ImportEntryPoint(val labelRes: Int) {
@@ -18,5 +19,12 @@ object DefaultImportEntryPointCatalog : ImportEntryPointCatalog {
         } else {
             listOf(ImportEntryPoint.SafImport)
         }
+    }
+}
+
+fun legacyPermissionsForImportEntryPoint(entryPoint: ImportEntryPoint, sdkInt: Int): Array<String> {
+    return when (entryPoint) {
+        ImportEntryPoint.SafImport -> emptyArray()
+        ImportEntryPoint.AdvancedImport -> storagePermissionsForSdk(sdkInt)
     }
 }
