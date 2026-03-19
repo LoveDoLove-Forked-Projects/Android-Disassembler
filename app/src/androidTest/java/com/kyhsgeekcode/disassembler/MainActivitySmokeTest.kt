@@ -15,4 +15,13 @@ class MainActivitySmokeTest {
             assertEquals(Lifecycle.State.RESUMED, scenario.state)
         }
     }
+
+    @Test
+    fun recreateMainActivity_returnsToResumedState() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.recreate()
+
+            assertEquals(Lifecycle.State.RESUMED, scenario.state)
+        }
+    }
 }

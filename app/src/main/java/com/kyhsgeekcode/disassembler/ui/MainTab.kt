@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -102,7 +103,9 @@ fun ProjectOverview(viewModel: MainViewModel) {
         Row(Modifier.fillMaxWidth()) {
             for (entryPoint in visibleEntryPoints) {
                 Button(
-                    modifier = Modifier.padding(end = 8.dp),
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .testTag(importEntryPointTestTag(entryPoint)),
                     onClick = {
                         launchImportEntryPoint(
                             entryPoint,
@@ -149,6 +152,13 @@ fun ProjectOverview(viewModel: MainViewModel) {
                 }
             }
         )
+    }
+}
+
+private fun importEntryPointTestTag(entryPoint: ImportEntryPoint): String {
+    return when (entryPoint) {
+        ImportEntryPoint.SafImport -> MainTestTags.IMPORT_SAF_BUTTON
+        ImportEntryPoint.AdvancedImport -> MainTestTags.IMPORT_ADVANCED_BUTTON
     }
 }
 

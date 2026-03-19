@@ -25,6 +25,7 @@
 | 이슈 `#348` Disassembly 탭 가로 스크롤 민감도 | 수평 스크롤 책임을 외곽 컨테이너로 옮겼다 | 긴 디스어셈블리 라인에서 좌우 이동이 더 안정적으로 동작하도록 조정했다 | `app/src/main/java/com/kyhsgeekcode/disassembler/ui/tabs/BinaryDisasmTab.kt` | 완료 |
 | 이슈 `#160` 회전 시 재진입 크래시 후보 | `MainActivity`가 재생성될 때 기존 `ACTION_VIEW`/`EXTRA_STREAM` intent를 다시 처리하지 않도록 가드하고, 새 외부 인텐트는 `onNewIntent`에서만 처리하도록 분리 | 회전 같은 configuration change에서 같은 import 요청이 중복 실행되는 경로를 차단해 상태 복원 중 재import/중복 초기화 가능성을 줄였다 | `app/src/main/java/com/kyhsgeekcode/disassembler/MainActivity.kt`, `app/src/test/java/com/kyhsgeekcode/disassembler/MainActivityIntentHandlingTest.kt` | 완료 |
 | instrumentation test 기반 부재 | AndroidX instrumentation runner를 설정하고 `MainActivity`가 emulator에서 `RESUMED` 상태까지 올라오는 smoke test와 CI emulator job을 추가 | unit test만으로는 잡히지 않는 startup/regression을 GitHub Actions emulator에서 자동 확인할 수 있는 최소 기반을 만들었다 | `app/build.gradle`, `app/src/androidTest/java/com/kyhsgeekcode/disassembler/MainActivitySmokeTest.kt`, `.github/workflows/ci.yml` | 완료 |
+| PR 회귀를 잡는 instrumentation 범위 부족 | Compose UI test 의존성, import entry-point test tag, 회전 재생성 smoke test, standard/power-user mode UI 검증 테스트를 추가 | 현재 PR의 핵심 변경인 회전 재생성 경계와 `Select file`/`Advanced import` 노출 규칙을 emulator에서 직접 검증할 수 있게 했다 | `app/build.gradle`, `app/src/main/java/com/kyhsgeekcode/disassembler/ui/MainTab.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/ui/MainTestTags.kt`, `app/src/androidTest/java/com/kyhsgeekcode/disassembler/MainActivitySmokeTest.kt`, `app/src/androidTest/java/com/kyhsgeekcode/disassembler/MainActivityImportEntryPointStandardModeTest.kt`, `app/src/androidTest/java/com/kyhsgeekcode/disassembler/MainActivityImportEntryPointPowerUserModeTest.kt`, `app/src/androidTest/java/com/kyhsgeekcode/disassembler/PowerUserModePreferenceRule.kt` | 완료 |
 | 프로젝트 경로/파일명 회귀 방지 | 프로젝트 상대경로 계산과 import 파일명 정규화를 pure helper로 분리 | 단위 테스트가 가능하도록 로직을 분리하고 경계 케이스를 줄였다 | `app/src/main/java/com/kyhsgeekcode/disassembler/project/ProjectManager.kt`, `app/src/main/java/com/kyhsgeekcode/disassembler/viewmodel/MainViewModel.kt` | 완료 |
 | 회귀 테스트 부재 | `ProjectManager`, 저장소 권한, Hex 레이아웃, import 파일명 테스트 추가 | 최소한의 유지보수 안전망을 확보했다 | `app/src/test/java/com/kyhsgeekcode/disassembler/ProjectManagerTest.kt`, `app/src/test/java/com/kyhsgeekcode/disassembler/PermissionUtilsTest.kt`, `app/src/test/java/com/kyhsgeekcode/disassembler/ui/components/HexViewLayoutTest.kt`, `app/src/test/java/com/kyhsgeekcode/disassembler/viewmodel/ImportedFileNameTest.kt` | 완료 |
 
@@ -44,6 +45,7 @@
 | project source helper 테스트 | 통과 | source file 및 `_libs` 경로 계산이 helper 계약으로 고정 |
 | `MainActivity` intent 재처리 가드 테스트 | 통과 | 첫 생성에서는 처리, 회전 재생성에서는 건너뛰는 규칙을 고정 |
 | `assembleDebugAndroidTest` | 통과 | AndroidX runner와 smoke test가 컴파일되는지 확인 |
+| 강화된 `assembleDebugAndroidTest` | 통과 | Compose UI 기반 PR 회귀 테스트 세트가 instrumentation APK로 묶이는지 확인 |
 | workflow YAML 파싱 | 통과 | `.github/workflows/ci.yml`, `.github/workflows/release.yml` 모두 Ruby YAML 파서 기준 확인 |
 
 ## 다음 웨이브 후보
