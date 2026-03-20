@@ -33,7 +33,7 @@
 
 | 작업 묶음 | 관련 이슈 | 제안 상태 | 판단 | 다음 액션 |
 | --- | --- | --- | --- | --- |
-| 최신 Android storage 정책 | `#95` | `planned-fast-follow` | 핵심 유지보수 항목이며 이미 SAF 전환을 시작했다 | 앱 전체 import/open 경로를 SAF 중심으로 계속 이관 |
+| 최신 Android storage 정책 | `#95` | `planned-fast-follow` | 핵심 유지보수 항목이며 이미 SAF 전환과 incoming `ACTION_VIEW`/`EXTRA_STREAM` instrumentation 회귀 검증을 시작했다 | 앱 전체 import/open 경로를 SAF 중심으로 계속 이관하고 남은 실기기 경계를 확인 |
 | 릴리스 산출물 부재 | `#719` | `planned-fast-follow` | 코드 문제보다 릴리스 파이프라인 문제다 | CI artifact, preview prerelease, formal release 흐름으로 운영 정리 |
 | 대용량/메모리/RecyclerView 크래시 | `#219`, `#235`, `#442`, `#523` | `planned-fast-follow` | `#728`에서 큰 파일 byte cache 제한과 문자열 검색 결과 상한/stable key를 먼저 넣었다 | `#728` 병합 후 실제 150MB 파일과 긴 문자열 리스트로 재검증하고 나머지 OOM 경로를 분리 |
 | `.so`/ELF/autosetup | `#514`, `#543`, `#576`, `#137` | `planned-fast-follow` | `#728`에서 64-bit ELF machine type 매핑과 override autosetup 재적용 경로를 먼저 수정했다 | 실제 `.so` 샘플로 재검증하고 남는 parser 문제만 분리 |

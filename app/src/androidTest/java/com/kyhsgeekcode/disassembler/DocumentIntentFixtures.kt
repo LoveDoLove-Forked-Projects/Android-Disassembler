@@ -20,15 +20,47 @@ import kotlinx.serialization.json.Json
 
 private const val FILE_PROVIDER_AUTHORITY = "com.kyhsgeekcode.disassembler.provider"
 
-fun createOpenDocumentResult(
+fun createIncomingContentUri(
     displayName: String,
     content: ByteArray
-): Instrumentation.ActivityResult {
+): Uri {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val inputFile = context.filesDir.resolve("androidTest/input/$displayName")
     inputFile.parentFile?.mkdirs()
     inputFile.writeBytes(content)
-    val uri = testFileUri(context, inputFile)
+    return testFileUri(context, inputFile)
+}
+
+fun createActionViewIntent(
+    displayName: String,
+    content: ByteArray
+): Intent {
+    val uri = createIncomingContentUri(displayName, content)
+    return Intent(Intent.ACTION_VIEW).apply {
+        data = uri
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+    }
+}
+
+fun createExtraStreamIntent(
+    displayName: String,
+    content: ByteArray
+): Intent {
+    val uri = createIncomingContentUri(displayName, content)
+    return Intent(Intent.ACTION_SEND).apply {
+        type = "*/*"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+    }
+}
+
+fun createOpenDocumentResult(
+    displayName: String,
+    content: ByteArray
+): Instrumentation.ActivityResult {
+    val uri = createIncomingContentUri(displayName, content)
     val resultIntent = Intent()
         .setData(uri)
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
