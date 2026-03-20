@@ -20,12 +20,36 @@ import com.kyhsgeekcode.disassembler.R
 import com.kyhsgeekcode.disassembler.exporting.buildBinaryDetailsExportFileName
 import com.kyhsgeekcode.disassembler.exporting.writeTextDocument
 import com.kyhsgeekcode.disassembler.files.AbstractFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private const val MAX_RENDERED_BINARY_DETAILS_CHARS = 48_000
+private const val BINARY_DETAILS_TRUNCATION_NOTICE =
+    "\n\n[Preview truncated. Use Save details to export the full text.]"
+
+data class BinaryDetailsPreview(
+    val text: String,
+    val isTruncated: Boolean
+)
+
+fun buildBinaryDetailsPreview(
+    fullText: String,
+    maxChars: Int = MAX_RENDERED_BINARY_DETAILS_CHARS
+): BinaryDetailsPreview {
+    if (fullText.length <= maxChars) {
+        return BinaryDetailsPreview(text = fullText, isTruncated = false)
+    }
+    return BinaryDetailsPreview(
+        text = fullText.take(maxChars) + BINARY_DETAILS_TRUNCATION_NOTICE,
+        isTruncated = true
+    )
+}
 
 @Composable
 fun BinaryDetailTabContent(data: AbstractFile) {
     val context = LocalContext.current
-    val detailsText = remember(data) { data.toString() }
+    val detailsPreview = remember(data) { buildBinaryDetailsPreview(data.toString()) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val exportDetailsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/plain")
@@ -33,7 +57,8 @@ fun BinaryDetailTabContent(data: AbstractFile) {
         if (destinationUri != null) {
             scope.launch {
                 runCatching {
-                    writeTextDocument(context.contentResolver, destinationUri, detailsText)
+                    val fullText = withContext(Dispatchers.Default) { data.toString() }
+                    writeTextDocument(context.contentResolver, destinationUri, fullText)
                 }.onSuccess {
                     Toast.makeText(
                         context,
@@ -65,7 +90,7 @@ fun BinaryDetailTabContent(data: AbstractFile) {
             Text(text = stringResource(id = R.string.save_details_to_file))
         }
         Text(
-            text = detailsText,
+            text = detailsPreview.text,
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
