@@ -233,16 +233,8 @@ class NewFileChooserAdapter(
     }
 
     private fun addItemsToListSorted(subItems: List<FileItem>) {
-        val newValues = ArrayList<FileItem>()
-        newValues.addAll(subItems)
-        newValues.sortWith(
-            compareBy(
-                { !it.text.endsWith("/") },
-                { it.text[0].lowercaseChar() },
-                { it.text })
-        )
         values.clear()
-        values.addAll(newValues)
+        values.addAll(sortFileItemsForDisplay(subItems))
     }
 
     fun onBackPressedShouldFinish(): Boolean {
@@ -286,4 +278,28 @@ class NewFileChooserAdapter(
     private suspend fun listSubItemsCached(item: FileItem): List<FileItem> {
         return listSubItems(item) // item.cachedSubItems() ?:
     }
+}
+
+fun sortFileItemsForDisplay(items: List<FileItem>): List<FileItem> {
+    val sortedItems = ArrayList<FileItem>(items)
+    sortedItems.sortWith(
+        compareBy(
+            { fileItemSortGroup(it.text) },
+            { sortableFileItemLeadingChar(it.text) },
+            { sortableFileItemText(it.text) }
+        )
+    )
+    return sortedItems
+}
+
+fun fileItemSortGroup(text: String): Int {
+    return if (text.endsWith("/")) 0 else 1
+}
+
+private fun sortableFileItemLeadingChar(text: String): Char {
+    return text.firstOrNull()?.lowercaseChar() ?: Char.MIN_VALUE
+}
+
+fun sortableFileItemText(text: String): String {
+    return text.lowercase()
 }
