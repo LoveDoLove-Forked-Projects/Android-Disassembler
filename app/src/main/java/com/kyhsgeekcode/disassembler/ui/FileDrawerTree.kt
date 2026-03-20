@@ -204,8 +204,13 @@ class FileDrawerTreeItem : TreeNode<FileDrawerTreeItem> {
             }
             DrawerItemType.ARCHIVE, DrawerItemType.APK -> {
                 val path = tag as String
+                val relPath = ProjectManager.getRelPathOrNull(path)
+                if (relPath == null) {
+                    items.add(FileDrawerTreeItem("Failed to resolve project path", newLevel))
+                    return items
+                }
                 val targetDirectory =
-                    ProjectDataStorage.resolveToWrite(ProjectManager.getRelPath(path), true)
+                    ProjectDataStorage.resolveToWrite(relPath, true)
                 Timber.d("Target directory $targetDirectory")
 //                        File(File(appCtx.filesDir, "/extracted/"), File(path).name + "/")
 //                appCtx.filesDir.resolve("extracted").resolve()
@@ -222,8 +227,13 @@ class FileDrawerTreeItem : TreeNode<FileDrawerTreeItem> {
             DrawerItemType.DEX -> {
                 // startHandler()
                 val filename = tag as String
+                val relPath = ProjectManager.getRelPathOrNull(filename)
+                if (relPath == null) {
+                    items.add(FileDrawerTreeItem("Failed to resolve project path", newLevel))
+                    return items
+                }
                 val targetDirectory =
-                    ProjectDataStorage.resolveToWrite(ProjectManager.getRelPath(filename), true)
+                    ProjectDataStorage.resolveToWrite(relPath, true)
 //                val targetDirectory = File(File(appCtx.filesDir, "/dex-decompiled/"), File(filename).name + "/")
                 targetDirectory.mkdirs()
                 Main.main(arrayOf("d", "-o", targetDirectory.absolutePath, filename))

@@ -91,8 +91,13 @@ class FileDrawerListAdapter(val progressHandler: ProgressHandler) {
             }
             DrawerItemType.ARCHIVE, DrawerItemType.APK -> {
                 val path = item.tag as String
+                val relPath = ProjectManager.getRelPathOrNull(path)
+                if (relPath == null) {
+                    items.add(FileDrawerListItem("Failed to resolve project path", newLevel))
+                    return items
+                }
                 val targetDirectory =
-                    ProjectDataStorage.resolveToWrite(ProjectManager.getRelPath(path), true)
+                    ProjectDataStorage.resolveToWrite(relPath, true)
                 Log.d(TAG, "Target directory $targetDirectory")
 //                        File(File(appCtx.filesDir, "/extracted/"), File(path).name + "/")
 //                appCtx.filesDir.resolve("extracted").resolve()
@@ -114,8 +119,13 @@ class FileDrawerListAdapter(val progressHandler: ProgressHandler) {
             DrawerItemType.DEX -> {
                 progressHandler.startProgress()
                 val filename = item.tag as String
+                val relPath = ProjectManager.getRelPathOrNull(filename)
+                if (relPath == null) {
+                    items.add(FileDrawerListItem("Failed to resolve project path", newLevel))
+                    return items
+                }
                 val targetDirectory =
-                    ProjectDataStorage.resolveToWrite(ProjectManager.getRelPath(filename), true)
+                    ProjectDataStorage.resolveToWrite(relPath, true)
 //                val targetDirectory = File(File(appCtx.filesDir, "/dex-decompiled/"), File(filename).name + "/")
                 targetDirectory.mkdirs()
                 // run backsmali

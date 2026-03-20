@@ -538,7 +538,8 @@ private fun createTabData(item: FileDrawerTreeItem): TabData {
 //        Log.d(TAG, "rootPath:${rootPath}")
     Timber.d("absPath:$abspath")
     val ext = File(abspath).extension.lowercase(Locale.getDefault())
-    val relPath: String = ProjectManager.getRelPath(abspath)
+    val relPath = ProjectManager.getRelPathOrNull(abspath)
+        ?: return buildUnavailablePathTabData(item.caption, abspath)
 //        if (abspath.length > rootPath.length)
 //            relPath = abspath.substring(rootPath.length+2)
 //        else
@@ -575,6 +576,15 @@ private fun createTabData(item: FileDrawerTreeItem): TabData {
     }
 
     return TabData(title, tabkind)
+}
+
+private fun buildUnavailablePathTabData(caption: String, abspath: String): TabData {
+    val key = "unavailable:${abspath.hashCode()}"
+    ProjectDataStorage.putFileContent(
+        key,
+        "The selected entry is no longer inside the current project:\n$abspath".encodeToByteArray()
+    )
+    return TabData("$caption unavailable", TabKind.Text(key))
 }
 
 fun fileItemTypeToProjectType(fileItem: FileItem): String {

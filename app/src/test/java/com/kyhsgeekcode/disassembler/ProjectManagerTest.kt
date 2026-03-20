@@ -1,6 +1,7 @@
 package com.kyhsgeekcode.disassembler
 
 import com.kyhsgeekcode.disassembler.project.computeProjectRelativePath
+import com.kyhsgeekcode.disassembler.project.computeProjectRelativePathOrNull
 import com.kyhsgeekcode.disassembler.project.importedProjectInfoFile
 import com.kyhsgeekcode.disassembler.project.relocateImportedProjectModel
 import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
@@ -54,6 +55,13 @@ class ProjectManagerTest {
         assertThrows(IllegalArgumentException::class.java) {
             computeProjectRelativePath(project, "outside-project/classes.dex")
         }
+    }
+
+    @Test
+    fun `computeProjectRelativePathOrNull returns null for paths outside project boundaries`() {
+        val project = projectModelFor("sample")
+
+        assertEquals(null, computeProjectRelativePathOrNull(project, "outside-project/classes.dex"))
     }
 
     @Test

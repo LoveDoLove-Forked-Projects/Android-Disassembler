@@ -267,6 +267,16 @@ object ProjectManager {
         return computeProjectRelativePath(currentProject!!, path)
     }
 
+    fun getRelPathOrNull(path: String): String? {
+        val project = currentProject ?: return null
+        return computeProjectRelativePathOrNull(project, path)
+            .also {
+                if (it == null) {
+                    Logger.e(TAG, "Failed to resolve project-relative path for $path")
+                }
+            }
+    }
+
 //    fun getRelPathFromGen(path: String): String {
 //        val rootPath = getGenerated("").absolutePath
 //        val relPath: String
@@ -362,6 +372,10 @@ fun computeProjectRelativePath(projectModel: ProjectModel, path: String): String
     throw IllegalArgumentException(
         "Path $absPath is not inside project ${projectModel.rootFile.absolutePath}"
     )
+}
+
+fun computeProjectRelativePathOrNull(projectModel: ProjectModel, path: String): String? {
+    return runCatching { computeProjectRelativePath(projectModel, path) }.getOrNull()
 }
 
 private fun substringWithoutLeadingSlash(path: String, prefix: String): String {
