@@ -36,7 +36,11 @@ fun createActionViewIntent(
     content: ByteArray
 ): Intent {
     val uri = createIncomingContentUri(displayName, content)
-    return Intent(Intent.ACTION_VIEW).apply {
+    return Intent(
+        ApplicationProvider.getApplicationContext(),
+        MainActivity::class.java
+    ).apply {
+        action = Intent.ACTION_VIEW
         data = uri
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
@@ -48,7 +52,11 @@ fun createExtraStreamIntent(
     content: ByteArray
 ): Intent {
     val uri = createIncomingContentUri(displayName, content)
-    return Intent(Intent.ACTION_SEND).apply {
+    return Intent(
+        ApplicationProvider.getApplicationContext(),
+        MainActivity::class.java
+    ).apply {
+        action = Intent.ACTION_SEND
         type = "*/*"
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
