@@ -41,44 +41,51 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
 fun extractZip(from: File, toDir: File, publisher: (Long, Long) -> Unit = { _, _ -> }) {
-    val zi = ZipInputStream(from.inputStream())
-    var entry: ZipEntry
     val buffer = ByteArray(2048)
     var processed = 0L
     val total = from.length()
-    while (zi.nextEntry.also { entry = it } != null) {
-        val name = entry.name
-        val outfile = File(toDir, name)
-        outfile.delete()
-        outfile.parentFile.mkdirs()
-        val canonicalPath: String = outfile.canonicalPath
-        if (!canonicalPath.startsWith(toDir.canonicalPath)) {
-            throw SecurityException(
-                "The zip/apk file may have a Zip Path Traversal Vulnerability." +
-                        "Is the zip/apk file trusted?"
-            )
-        }
-        var output: FileOutputStream? = null
-        try {
-            output = FileOutputStream(outfile)
-            var len: Int
-            while (zi.read(buffer).also { len = it } > 0) {
-                output.write(buffer, 0, len)
+    ZipInputStream(from.inputStream()).use { zi ->
+        var entry: ZipEntry?
+        while (zi.nextEntry.also { entry = it } != null) {
+            val zipEntry = entry ?: continue
+            val outfile = File(toDir, zipEntry.name)
+            val canonicalPath = outfile.canonicalPath
+            if (!canonicalPath.startsWith(toDir.canonicalPath)) {
+                throw SecurityException(
+                    "The zip/apk file may have a Zip Path Traversal Vulnerability." +
+                            "Is the zip/apk file trusted?"
+                )
             }
-        } finally { // we must always close the output file
-            output?.close()
+            if (zipEntry.isDirectory) {
+                if (!outfile.isDirectory && !outfile.mkdirs()) {
+                    throw IOException("failed to create directory $outfile")
+                }
+                continue
+            }
+            val parent = outfile.parentFile
+            if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
+                throw IOException("failed to create directory $parent")
+            }
+            outfile.outputStream().use { output ->
+                var len: Int
+                while (zi.read(buffer).also { len = it } > 0) {
+                    output.write(buffer, 0, len)
+                }
+            }
+            processed += maxOf(zipEntry.compressedSize, zipEntry.size, 0L)
+            publisher(processed, total)
         }
-        processed += entry.size
-        publisher(total, processed)
-        zi.close()
     }
 }
 
 fun File.isArchive(): Boolean {
+    if (isKnownArchiveExtension(name)) {
+        return true
+    }
     return try {
         ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(inputStream()))
         true
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         false
     }
 }
@@ -126,6 +133,14 @@ fun extractSupportedArchive(
     toDir: File,
     publisher: (Long, Long) -> Unit = { _, _ -> }
 ) {
+    if (from.extension.equals("zip", true) ||
+        from.extension.equals("apk", true) ||
+        from.extension.equals("jar", true) ||
+        from.extension.equals("aar", true)
+    ) {
+        extractZip(from, toDir, publisher)
+        return
+    }
     val totalSize = from.length()
     try {
         ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(from.inputStream())).use { archi ->
@@ -162,6 +177,8 @@ fun extractSupportedArchive(
                 publisher(archi.bytesRead, totalSize)
             }
         }
+    } catch (e: NoClassDefFoundError) {
+        throw IOException("archive support is unavailable on this device for ${from.extension}", e)
     } catch (e: ArchiveException) {
         throw IOException("error inflating archive", e)
     } catch (e: ZipException) {

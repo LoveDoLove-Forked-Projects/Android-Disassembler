@@ -37,7 +37,8 @@
 | 대용량/메모리/RecyclerView 크래시 | `#219`, `#235`, `#442`, `#523` | `planned-fast-follow` | `#728`에서 큰 파일 byte cache 제한과 문자열 검색 결과 상한/stable key를 먼저 넣었다 | `#728` 병합 후 실제 150MB 파일과 긴 문자열 리스트로 재검증하고 나머지 OOM 경로를 분리 |
 | 회전/상태 복원 크래시 | `#160` | `covered-by-open-pr` | `#728`에서 Activity 재생성 시 외부 import intent 재처리를 막는 1차 가드를 넣었다 | `#728` 병합 후 실제 회전 회귀를 확인하고 정리 |
 | `.so`/ELF/autosetup | `#514`, `#543`, `#576`, `#137` | `covered-by-open-pr` | `#728`에서 64-bit ELF machine type 매핑과 override autosetup 재적용 경로를 먼저 수정했다 | `#728` 병합 후 실제 `.so` 샘플로 재검증하고 남는 parser 문제만 분리 |
-| crash report 저신호 묶음 | `#716`, `#672`, `#512`, `#508`, `#507`, `#490`, `#438`, `#376`, `#280` | `needs-repro` | 제목만으로는 원인 판단이 어렵고 재현 자료가 부족하다 | 공통 템플릿으로 추가 정보 요청 후 재현 안 되면 정리 |
+| 구형 Android archive 감지 크래시 | `#507`, `#508` | `covered-by-open-pr` | `#728`에서 archive 확장자 fast path와 `NoClassDefFoundError` 방어를 넣어 구형 Android의 Commons Compress 감지 크래시 경로를 우회했다 | `#728` 병합 후 Android 6~7 계열에서 archive chooser와 open 경로를 재확인하고 정리 |
+| crash report 저신호 묶음 | `#716`, `#672`, `#512`, `#490`, `#438`, `#376`, `#280` | `needs-repro` | 제목만으로는 원인 판단이 어렵고 재현 자료가 부족하다 | 공통 템플릿으로 추가 정보 요청 후 재현 안 되면 정리 |
 | SWF 요청 | `#721` | `planned-fast-follow` | 모바일 SWF 확장/디컴파일 요구는 남아 있지만 추적 스레드는 하나로 줄었다 | 기준선 병합 후 포맷 확장 우선순위에서 다시 평가 |
 | 포맷 확장 요청 | `#120`, `#116`, `#124`, `#129` | `planned-fast-follow` | `#129`는 `#728`에서 generic archive extraction으로 먼저 흡수했고, 나머지는 기준선 복구 후가 맞다 | `#129`는 `#728` 병합 후 정리하고 나머지는 포맷별 난이도와 수요를 다시 평가 |
 | export/저장 유틸 | `#123`, `#159`, `#720` | `covered-by-open-pr` | `#728`에서 project ZIP export, detail `.txt` 저장, import 파일명 정규화/테스트를 함께 정리했다 | `#728` 병합 후 실제 기기에서 export/save 동작 확인하고 정리 |
