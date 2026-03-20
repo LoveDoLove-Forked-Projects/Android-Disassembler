@@ -20,18 +20,44 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import timber.log.Timber
 
+internal const val MAX_RENDERED_TEXT_BYTES = 256 * 1024
+
+data class TextContentPreview(
+    val bytes: ByteArray,
+    val originalSize: Int,
+    val isTruncated: Boolean
+)
+
+fun buildTextContentPreview(bytes: ByteArray, maxBytes: Int = MAX_RENDERED_TEXT_BYTES): TextContentPreview {
+    if (bytes.size <= maxBytes) {
+        return TextContentPreview(bytes = bytes, originalSize = bytes.size, isTruncated = false)
+    }
+    return TextContentPreview(
+        bytes = bytes.copyOf(maxBytes),
+        originalSize = bytes.size,
+        isTruncated = true
+    )
+}
+
 class TextTabData(val data: TabKind.Text) : PreparedTabData() {
     val relPath = data.key
-    val fileContent = ProjectDataStorage.getFileContent(relPath)
 
     private val _highlighted = MutableStateFlow(AnnotatedString(""))
     val highlighted = _highlighted as StateFlow<AnnotatedString>
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice = _notice as StateFlow<String?>
 
     override suspend fun prepare() {
-        highlightContents()
+        val preview = buildTextContentPreview(ProjectDataStorage.getFileContent(relPath))
+        _notice.value = if (preview.isTruncated) {
+            "Showing first ${preview.bytes.size} bytes of ${preview.originalSize} bytes"
+        } else {
+            null
+        }
+        highlightContents(preview.bytes)
     }
 
-    private suspend fun highlightContents() {
+    private suspend fun highlightContents(fileContent: ByteArray) {
         val ext = ProjectDataStorage.getExtension(relPath) // File(relPath).extension.toLowerCase()
         var highlightedBuilder = AnnotatedString("")
         var strContent: String?
@@ -66,14 +92,18 @@ class TextTabData(val data: TabKind.Text) : PreparedTabData() {
 fun TextTab(data: TabData, viewModel: MainViewModel) {
     val preparedTabData: TextTabData = viewModel.getTabData(data)
     val highlighted = preparedTabData.highlighted.collectAsState()
-    Text(
-        text = highlighted.value,
-        Modifier
-            .background(Color.Black)
-            .verticalScroll(
-                rememberScrollState()
-            )
-    )
+    val notice = preparedTabData.notice.collectAsState()
+    androidx.compose.foundation.layout.Column {
+        notice.value?.let { Text(it) }
+        Text(
+            text = highlighted.value,
+            Modifier
+                .background(Color.Black)
+                .verticalScroll(
+                    rememberScrollState()
+                )
+        )
+    }
 
 //    binding.textFragmentTextView.setBackgroundColor(Color.BLACK)
 }

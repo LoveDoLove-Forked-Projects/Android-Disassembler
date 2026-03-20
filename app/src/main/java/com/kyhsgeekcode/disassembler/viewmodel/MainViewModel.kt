@@ -163,7 +163,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 app.contentResolver.openInputStream(uri).use { inStream ->
                     requireNotNull(inStream) { "Failed to open content URI: $uri" }
                     val fileName = resolveImportedFileName(app, uri, displayName)
-                    val file = app.filesDir.resolve("imports").resolve(fileName)
+                    val file = resolveImportedDestinationFile(
+                        app.filesDir.resolve("imports"),
+                        fileName
+                    )
                     file.parentFile?.mkdirs()
                     file.outputStream().use { fileOut ->
                         inStream.copyTo(fileOut)
@@ -373,6 +376,23 @@ internal fun sanitizeImportedFileName(displayName: String?): String {
         ?.takeIf { it.isNotEmpty() }
         ?.replace(Regex("""[/\\]+"""), "_")
     return normalized ?: "openDirect"
+}
+
+internal fun resolveImportedDestinationFile(importsDir: File, displayName: String?): File {
+    val sanitizedName = sanitizeImportedFileName(displayName)
+    var candidate = importsDir.resolve(sanitizedName)
+    if (!candidate.exists()) {
+        return candidate
+    }
+
+    val baseName = candidate.nameWithoutExtension.ifBlank { candidate.name }
+    val extensionSuffix = candidate.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: ""
+    var index = 1
+    while (candidate.exists()) {
+        candidate = importsDir.resolve("${baseName}_$index$extensionSuffix")
+        index++
+    }
+    return candidate
 }
 
 private fun resolveImportedFileName(
