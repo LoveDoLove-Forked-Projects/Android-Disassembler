@@ -11,6 +11,7 @@ import com.kyhsgeekcode.disassembler.R
 import com.kyhsgeekcode.disassembler.importing.AdvancedImportOptions
 import com.kyhsgeekcode.disassembler.importing.AdvancedImportSource
 import com.kyhsgeekcode.disassembler.importing.DefaultAdvancedImportSourceCatalog
+import com.kyhsgeekcode.disassembler.project.isProjectArchiveFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
@@ -74,7 +75,7 @@ open class FileItem : Serializable {
 
     open fun isAccessible(): Boolean = file?.isAccessible() ?: true
 
-    open fun isProjectAble(): Boolean = file?.isDirectory == true
+    open fun isProjectAble(): Boolean = file?.isDirectory == true || file?.let(::isProjectArchiveFile) == true
 
     open suspend fun listSubItems(publisher: (current: Int, total: Int) -> Unit = { _, _ -> }): List<FileItem> {
         if (!canExpand())

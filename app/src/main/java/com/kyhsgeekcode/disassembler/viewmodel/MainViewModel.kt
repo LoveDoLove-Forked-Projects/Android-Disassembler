@@ -20,10 +20,12 @@ import com.kyhsgeekcode.disassembler.exporting.buildProjectExportFileName
 import com.kyhsgeekcode.disassembler.exporting.copyFileToDocument
 import com.kyhsgeekcode.disassembler.project.ProjectDataStorage
 import com.kyhsgeekcode.disassembler.project.ProjectManager
+import com.kyhsgeekcode.disassembler.project.ProjectOpenAction
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
 import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
 import com.kyhsgeekcode.disassembler.project.models.ProjectSourceKind
 import com.kyhsgeekcode.disassembler.project.models.ProjectType
+import com.kyhsgeekcode.disassembler.project.determineProjectOpenAction
 import com.kyhsgeekcode.disassembler.ui.FileDrawerTreeItem
 import com.kyhsgeekcode.disassembler.ui.TabData
 import com.kyhsgeekcode.disassembler.ui.TabKind
@@ -150,10 +152,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun onSelectFilePayload(payload: SelectedFileIntentPayload) {
-        _file.value = File(payload.filePath)
-        _nativeFile.value = payload.nativeFilePath?.let(::File)
-        _projectType.value = payload.projectType
-        _askCopy.value = true
+        val selectedFile = File(payload.filePath)
+        when (val action = determineProjectOpenAction(selectedFile, _openAsProject.value)) {
+            ProjectOpenAction.PromptCopy -> {
+                _file.value = selectedFile
+                _nativeFile.value = payload.nativeFilePath?.let(::File)
+                _projectType.value = payload.projectType
+                _askCopy.value = true
+            }
+
+            is ProjectOpenAction.OpenExistingProject -> {
+                openExistingProject(action.projectInfoFile)
+            }
+
+            is ProjectOpenAction.ImportProjectArchive -> {
+                importProjectArchive(action.archiveFile)
+            }
+        }
+    }
+
+    private fun openExistingProject(projectInfoFile: File) {
+        viewModelScope.launch {
+            eventChannel.send(Event.StartProgress())
+            try {
+                val project = withContext(Dispatchers.IO) {
+                    ProjectManager.openProject(projectInfoFile.absolutePath)
+                }
+                _selectedFilePath.value = project.sourceFilePath
+                _currentProject.value = project
+            } catch (e: Exception) {
+                eventChannel.send(Event.AlertError("Failed to open project"))
+            }
+            eventChannel.send(Event.FinishProgress())
+        }
+    }
+
+    private fun importProjectArchive(archiveFile: File) {
+        viewModelScope.launch {
+            eventChannel.send(Event.StartProgress())
+            try {
+                val project = withContext(Dispatchers.IO) {
+                    ProjectManager.import(archiveFile)
+                }
+                _selectedFilePath.value = project.sourceFilePath
+                _currentProject.value = project
+            } catch (e: Exception) {
+                eventChannel.send(Event.AlertError("Failed to import project"))
+            }
+            eventChannel.send(Event.FinishProgress())
+        }
     }
 
     private fun onSelectUri(uri: Uri, displayName: String? = null) {

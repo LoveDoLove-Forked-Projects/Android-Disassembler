@@ -19,6 +19,7 @@ import org.json.JSONException
 import splitties.init.appCtx
 import java.io.File
 import java.io.IOException
+import java.util.zip.ZipFile
 
 /**
  * the list of paths of project_info.json is saved to a SharedPreference.
@@ -282,6 +283,44 @@ object ProjectManager {
             return sub.substring(1)
         return sub
     }
+}
+
+sealed class ProjectOpenAction {
+    data object PromptCopy : ProjectOpenAction()
+    data class OpenExistingProject(val projectInfoFile: File) : ProjectOpenAction()
+    data class ImportProjectArchive(val archiveFile: File) : ProjectOpenAction()
+}
+
+internal fun determineProjectOpenAction(targetFile: File, openAsProject: Boolean): ProjectOpenAction {
+    if (!openAsProject) {
+        return ProjectOpenAction.PromptCopy
+    }
+    projectInfoFileForDirectory(targetFile)?.let {
+        return ProjectOpenAction.OpenExistingProject(it)
+    }
+    if (isProjectArchiveFile(targetFile)) {
+        return ProjectOpenAction.ImportProjectArchive(targetFile)
+    }
+    return ProjectOpenAction.PromptCopy
+}
+
+internal fun projectInfoFileForDirectory(targetFile: File): File? {
+    if (!targetFile.isDirectory) {
+        return null
+    }
+    val projectInfoFile = targetFile.resolve("project_info.json")
+    return projectInfoFile.takeIf { it.isFile }
+}
+
+fun isProjectArchiveFile(targetFile: File): Boolean {
+    if (!targetFile.isFile || !targetFile.extension.equals("zip", ignoreCase = true)) {
+        return false
+    }
+    return runCatching {
+        ZipFile(targetFile).use { zipFile ->
+            zipFile.getEntry("project_info.json") != null
+        }
+    }.getOrDefault(false)
 }
 
 internal fun importedProjectInfoFile(projectDir: File): File {
