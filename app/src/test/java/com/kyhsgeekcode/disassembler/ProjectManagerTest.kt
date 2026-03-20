@@ -1,6 +1,8 @@
 package com.kyhsgeekcode.disassembler
 
 import com.kyhsgeekcode.disassembler.project.computeProjectRelativePath
+import com.kyhsgeekcode.disassembler.project.importedProjectInfoFile
+import com.kyhsgeekcode.disassembler.project.relocateImportedProjectModel
 import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
 import com.kyhsgeekcode.disassembler.project.models.ProjectSourceKind
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
@@ -90,6 +92,34 @@ class ProjectManagerTest {
         assertEquals(
             File("${project.sourceFile.absolutePath}_libs"),
             project.sourceLibrariesDirectory
+        )
+    }
+
+    @Test
+    fun `relocateImportedProjectModel rewrites source and generated paths into project dir`() {
+        val project = projectModelFor(
+            sourceName = "temp/sourceFilePath",
+            sourceDescriptor = ProjectSourceDescriptor(
+                ProjectSourceKind.CONTENT_URI,
+                "content://samples/app.apk"
+            )
+        ).copy(generatedFolder = "temp/baseFolder")
+        val projectDir = File("imported-project")
+
+        val relocated = relocateImportedProjectModel(project, projectDir)
+
+        assertEquals(projectDir.resolve("sourceFilePath").path, relocated.sourceFilePath)
+        assertEquals(projectDir.resolve("baseFolder").path, relocated.generatedFolder)
+        assertEquals(project.sourceDescriptor, relocated.sourceDescriptor)
+    }
+
+    @Test
+    fun `importedProjectInfoFile resolves inside project dir`() {
+        val projectDir = File("imported-project")
+
+        assertEquals(
+            projectDir.resolve("project_info.json"),
+            importedProjectInfoFile(projectDir)
         )
     }
 

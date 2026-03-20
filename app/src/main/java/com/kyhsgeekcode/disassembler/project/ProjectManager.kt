@@ -214,17 +214,28 @@ object ProjectManager {
      */
     fun import(source: File): ProjectModel {
         val dest = appCtx.cacheDir.resolve("project-extract")
+        dest.deleteRecursively()
         extractZip(source, dest)
         val infoFile = dest.resolve("project_info.json")
         if (!infoFile.isAccessible())
             throw NotProjectException(source.absolutePath)
-        val projectModel = openProject(infoFile.absolutePath)
-        val projectDir = rootdir.resolve(projectModel.name.toValidFileName())
+        val extractedProjectModel = openProject(infoFile.absolutePath)
+        val projectDir = rootdir.resolve(extractedProjectModel.name.toValidFileName())
+        projectDir.deleteRecursively()
         projectDir.mkdirs()
         dest.copyRecursively(projectDir)
         dest.deleteRecursively()
-//        FileUtils.moveDirectory(dest, projectDir)
-        return projectModel
+        val relocatedProjectModel = relocateImportedProjectModel(extractedProjectModel, projectDir)
+        val finalInfoFile = importedProjectInfoFile(projectDir)
+        projectModels.remove(infoFile.absolutePath)
+        projectPaths.remove(infoFile.absolutePath)
+        projectModelToPath.remove(extractedProjectModel)
+        projectModels[finalInfoFile.absolutePath] = relocatedProjectModel
+        projectPaths.add(finalInfoFile.absolutePath)
+        projectModelToPath[relocatedProjectModel] = finalInfoFile.absolutePath
+        currentProject = relocatedProjectModel
+        save(relocatedProjectModel)
+        return relocatedProjectModel
         //        FileUtils.moveDirectory(dest.resolve("baseFolder"), projectDir.resolve("baseFolder"))
         //        FileUtils.moveDirectory(dest.resolve("sourceFilePath"), projectDir.resolve())
     }
@@ -271,6 +282,17 @@ object ProjectManager {
             return sub.substring(1)
         return sub
     }
+}
+
+internal fun importedProjectInfoFile(projectDir: File): File {
+    return projectDir.resolve("project_info.json")
+}
+
+internal fun relocateImportedProjectModel(projectModel: ProjectModel, projectDir: File): ProjectModel {
+    return projectModel.copy(
+        generatedFolder = projectDir.resolve("baseFolder").path,
+        sourceFilePath = projectDir.resolve("sourceFilePath").path
+    )
 }
 
 fun computeProjectRelativePath(projectModel: ProjectModel, path: String): String {
