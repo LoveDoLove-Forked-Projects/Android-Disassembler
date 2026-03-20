@@ -218,13 +218,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     file.outputStream().use { fileOut ->
                         inStream.copyTo(fileOut)
                     }
-                    val project = ProjectManager.newProject(
-                        file,
-                        ProjectType.UNKNOWN,
-                        file.name,
-                        true,
-                        ProjectSourceDescriptor(ProjectSourceKind.CONTENT_URI, uri.toString())
-                    )
+                    val project = when (
+                        val action = determineImportedUriAction(file, uri.toString())
+                    ) {
+                        is ImportedUriAction.CreateProject -> ProjectManager.newProject(
+                            action.importedFile,
+                            ProjectType.UNKNOWN,
+                            action.importedFile.name,
+                            true,
+                            action.sourceDescriptor
+                        )
+
+                        is ImportedUriAction.ImportProjectArchive -> ProjectManager.import(action.archiveFile)
+                    }
                     _selectedFilePath.value = project.sourceFilePath
                     _currentProject.value = project
                 }
@@ -423,6 +429,29 @@ internal fun sanitizeImportedFileName(displayName: String?): String {
         ?.takeIf { it.isNotEmpty() }
         ?.replace(Regex("""[/\\]+"""), "_")
     return normalized ?: "openDirect"
+}
+
+internal sealed class ImportedUriAction {
+    data class CreateProject(
+        val importedFile: File,
+        val sourceDescriptor: ProjectSourceDescriptor
+    ) : ImportedUriAction()
+
+    data class ImportProjectArchive(val archiveFile: File) : ImportedUriAction()
+}
+
+internal fun determineImportedUriAction(importedFile: File, sourceUriLocation: String): ImportedUriAction {
+    return when (val action = determineProjectOpenAction(importedFile, openAsProject = true)) {
+        is ProjectOpenAction.ImportProjectArchive -> ImportedUriAction.ImportProjectArchive(action.archiveFile)
+        is ProjectOpenAction.OpenExistingProject,
+        ProjectOpenAction.PromptCopy -> ImportedUriAction.CreateProject(
+            importedFile = importedFile,
+            sourceDescriptor = ProjectSourceDescriptor(
+                ProjectSourceKind.CONTENT_URI,
+                sourceUriLocation
+            )
+        )
+    }
 }
 
 internal fun resolveImportedDestinationFile(importsDir: File, displayName: String?): File {
