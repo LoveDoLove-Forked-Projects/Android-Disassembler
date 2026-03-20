@@ -155,7 +155,9 @@ fun ProjectOverview(viewModel: MainViewModel) {
         }
         if (currentProject != null) {
             Button(
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .testTag(MainTestTags.EXPORT_PROJECT_BUTTON),
                 onClick = {
                     exportProjectLauncher.launch(
                         buildProjectExportFileName(currentProject!!.name)
