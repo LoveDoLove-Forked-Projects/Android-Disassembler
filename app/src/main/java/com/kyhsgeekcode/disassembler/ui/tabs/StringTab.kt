@@ -1,6 +1,7 @@
 package com.kyhsgeekcode.disassembler.ui.tabs
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -25,21 +26,47 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import timber.log.Timber
 
+private const val MAX_RENDERED_STRING_RESULTS = 5_000
+
+class StringSearchResultAccumulator(private val maxResults: Int) {
+    private val _results = mutableListOf<FoundString>()
+    val results: List<FoundString>
+        get() = _results
+
+    var isTruncated: Boolean = false
+        private set
+
+    fun append(result: FoundString) {
+        if (_results.size >= maxResults) {
+            isTruncated = true
+            return
+        }
+        _results.add(result)
+    }
+}
+
 @ExperimentalUnsignedTypes
 class StringTabData(val data: TabKind.FoundString) : PreparedTabData() {
     val strings = mutableStateListOf<FoundString>()
     private val _isDone = MutableStateFlow(false)
     val isDone = _isDone as StateFlow<Boolean>
+    private val _isTruncated = MutableStateFlow(false)
+    val isTruncated = _isTruncated as StateFlow<Boolean>
     lateinit var analyzer: Analyzer
     override suspend fun prepare() {
         val bytes = ProjectDataStorage.getFileContent(data.relPath)
         Timber.d("Given relPath: ${data.relPath}")
         analyzer = Analyzer(bytes)
+        val accumulator = StringSearchResultAccumulator(MAX_RENDERED_STRING_RESULTS)
         analyzer.searchStrings(data.range.first, data.range.last) { p, t, fs ->
             fs?.let {
-                strings.add(it)
+                accumulator.append(it)
+                if (!accumulator.isTruncated) {
+                    strings.add(it)
+                }
             }
             if (p == t) { // done
+                _isTruncated.value = accumulator.isTruncated
                 _isDone.value = true
             }
         }
@@ -53,13 +80,20 @@ fun StringTab(data: TabData, viewModel: MainViewModel) {
     val preparedTabData: StringTabData = viewModel.getTabData(data)
     val strings = preparedTabData.strings
     val isDone = preparedTabData.isDone.collectAsState()
-    Row {
-        if (!isDone.value) {
-            Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Searching...")
+    val isTruncated = preparedTabData.isTruncated.collectAsState()
+    Column {
+        Row {
+            if (!isDone.value) {
+                Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Searching...")
+            }
+            if (isTruncated.value) {
+                Text("Showing first $MAX_RENDERED_STRING_RESULTS results")
+            }
         }
         TableView(
             titles = listOf("Offset" to 100.dp, "Length" to 50.dp, "String" to 800.dp),
             items = strings,
+            key = { "${it.offset}:${it.length}:${it.string.hashCode()}" },
         ) { item, col ->
             when (col) {
                 0 -> item.offset.toString(16)

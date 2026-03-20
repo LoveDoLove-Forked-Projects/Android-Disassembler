@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import com.kyhsgeekcode.disassembler.databinding.NewFileChooserRowBinding
+import com.kyhsgeekcode.disassembler.importing.AdvancedImportOptions
 import com.kyhsgeekcode.disassembler.showEditDialog
 import com.kyhsgeekcode.filechooser.model.FileItem
 import kotlinx.coroutines.*
@@ -18,7 +19,8 @@ import kotlin.collections.ArrayList
 
 class NewFileChooserAdapter(
     private
-    val parentActivity: NewFileChooserActivity
+    val parentActivity: NewFileChooserActivity,
+    private val advancedImportOptions: AdvancedImportOptions
 ) : RecyclerView.Adapter<NewFileChooserAdapter.ViewHolder>() {
     val TAG = "Adapter"
     private val values: MutableList<FileItem> = ArrayList()
@@ -165,11 +167,7 @@ class NewFileChooserAdapter(
     }
 
     suspend fun tryAddRootItems() {
-        val items: List<FileItem> = try {
-            FileItem.rootItem.listSubItems()
-        } catch (e: Exception) {
-            arrayListOf(FileItem(e.message ?: ""))
-        }
+        val items: List<FileItem> = FileItem.rootEntries(advancedImportOptions)
         values.addAll(items)
     }
 
@@ -235,16 +233,8 @@ class NewFileChooserAdapter(
     }
 
     private fun addItemsToListSorted(subItems: List<FileItem>) {
-        val newValues = ArrayList<FileItem>()
-        newValues.addAll(subItems)
-        newValues.sortWith(
-            compareBy(
-                { !it.text.endsWith("/") },
-                { it.text[0].lowercaseChar() },
-                { it.text })
-        )
         values.clear()
-        values.addAll(newValues)
+        values.addAll(sortFileItemsForDisplay(subItems))
     }
 
     fun onBackPressedShouldFinish(): Boolean {
@@ -252,7 +242,11 @@ class NewFileChooserAdapter(
         val lastItem = backStack.pop()
         currentParentItem = lastItem
         CoroutineScope(Dispatchers.Default).launch {
-            val items = listSubItemsCached(currentParentItem)
+            val items = if (currentParentItem == FileItem.rootItem) {
+                FileItem.rootEntries(advancedImportOptions)
+            } else {
+                listSubItemsCached(currentParentItem)
+            }
             addItemsToListSorted(items)
             withContext(Dispatchers.Main) {
                 notifyDataSetChanged()
@@ -284,4 +278,28 @@ class NewFileChooserAdapter(
     private suspend fun listSubItemsCached(item: FileItem): List<FileItem> {
         return listSubItems(item) // item.cachedSubItems() ?:
     }
+}
+
+fun sortFileItemsForDisplay(items: List<FileItem>): List<FileItem> {
+    val sortedItems = ArrayList<FileItem>(items)
+    sortedItems.sortWith(
+        compareBy(
+            { fileItemSortGroup(it.text) },
+            { sortableFileItemLeadingChar(it.text) },
+            { sortableFileItemText(it.text) }
+        )
+    )
+    return sortedItems
+}
+
+fun fileItemSortGroup(text: String): Int {
+    return if (text.endsWith("/")) 0 else 1
+}
+
+private fun sortableFileItemLeadingChar(text: String): Char {
+    return text.firstOrNull()?.lowercaseChar() ?: Char.MIN_VALUE
+}
+
+fun sortableFileItemText(text: String): String {
+    return text.lowercase()
 }

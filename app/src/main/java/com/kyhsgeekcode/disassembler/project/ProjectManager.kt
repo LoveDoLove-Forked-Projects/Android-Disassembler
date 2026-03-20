@@ -3,8 +3,11 @@ package com.kyhsgeekcode.disassembler.project
 import android.content.Context
 import android.util.Log
 import com.kyhsgeekcode.disassembler.Logger
+import com.kyhsgeekcode.disassembler.exporting.buildProjectExportFileName
 import com.kyhsgeekcode.disassembler.copyDirectory
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceKind
 import com.kyhsgeekcode.extractZip
 import com.kyhsgeekcode.isAccessible
 import com.kyhsgeekcode.saveAsZip
@@ -16,6 +19,7 @@ import org.json.JSONException
 import splitties.init.appCtx
 import java.io.File
 import java.io.IOException
+import java.util.zip.ZipFile
 
 /**
  * the list of paths of project_info.json is saved to a SharedPreference.
@@ -85,7 +89,11 @@ object ProjectManager {
         targetFileOrFolder: File,
         projectType: String,
         projectName: String,
-        copy: Boolean = true
+        copy: Boolean = true,
+        sourceDescriptor: ProjectSourceDescriptor = ProjectSourceDescriptor(
+            ProjectSourceKind.FILE_PATH,
+            targetFileOrFolder.absolutePath
+        )
     ): ProjectModel {
 //        require(if (useDefault) true else file.isDirectory)
         val projectModel: ProjectModel
@@ -113,7 +121,13 @@ object ProjectManager {
         }
 
         projectModel =
-            ProjectModel(projectName, genFolder.path, projectType, determinedSourceFolder.path)
+            ProjectModel(
+                name = projectName,
+                generatedFolder = genFolder.path,
+                projectType = projectType,
+                sourceFilePath = determinedSourceFolder.path,
+                sourceDescriptor = sourceDescriptor
+            )
 
         projectModels[projectInfoFile.path] = projectModel
         projectPaths.add(projectInfoFile.absolutePath)
@@ -169,7 +183,7 @@ object ProjectManager {
     fun save(projectModel: ProjectModel) {
         require(projectModelToPath.contains(projectModel))
         val jsonString = Json.encodeToString(projectModel)
-        val file = File(projectModelToPath[projectModel])
+        val file = File(requireNotNull(projectModelToPath[projectModel]))
         file.outputStream().bufferedWriter().use { it.write(jsonString) }
     }
 
@@ -179,13 +193,13 @@ object ProjectManager {
      * @return true if success else false
      */
     fun export(projectModel: ProjectModel, outDir: File): Boolean {
+        val outZipFile = outDir.resolve(buildProjectExportFileName(projectModel.name))
+        return exportArchive(projectModel, outZipFile)
+    }
+
+    fun exportArchive(projectModel: ProjectModel, outZipFile: File): Boolean {
         require(projectModelToPath.contains(projectModel))
         save(projectModel)
-        // projectModel.sourceFilePath
-        // projectModel.baseFolder
-        // projectModel itself
-        val outZipFile =
-            outDir.resolve("DisassemblerProject_${projectModel.name.toValidFileName()}.zip")
         saveAsZip(
             outZipFile,
             Pair(projectModel.sourceFilePath, "sourceFilePath"),
@@ -201,17 +215,28 @@ object ProjectManager {
      */
     fun import(source: File): ProjectModel {
         val dest = appCtx.cacheDir.resolve("project-extract")
+        dest.deleteRecursively()
         extractZip(source, dest)
         val infoFile = dest.resolve("project_info.json")
         if (!infoFile.isAccessible())
             throw NotProjectException(source.absolutePath)
-        val projectModel = openProject(infoFile.absolutePath)
-        val projectDir = rootdir.resolve(projectModel.name.toValidFileName())
+        val extractedProjectModel = openProject(infoFile.absolutePath)
+        val projectDir = rootdir.resolve(extractedProjectModel.name.toValidFileName())
+        projectDir.deleteRecursively()
         projectDir.mkdirs()
         dest.copyRecursively(projectDir)
         dest.deleteRecursively()
-//        FileUtils.moveDirectory(dest, projectDir)
-        return projectModel
+        val relocatedProjectModel = relocateImportedProjectModel(extractedProjectModel, projectDir)
+        val finalInfoFile = importedProjectInfoFile(projectDir)
+        projectModels.remove(infoFile.absolutePath)
+        projectPaths.remove(infoFile.absolutePath)
+        projectModelToPath.remove(extractedProjectModel)
+        projectModels[finalInfoFile.absolutePath] = relocatedProjectModel
+        projectPaths.add(finalInfoFile.absolutePath)
+        projectModelToPath[relocatedProjectModel] = finalInfoFile.absolutePath
+        currentProject = relocatedProjectModel
+        save(relocatedProjectModel)
+        return relocatedProjectModel
         //        FileUtils.moveDirectory(dest.resolve("baseFolder"), projectDir.resolve("baseFolder"))
         //        FileUtils.moveDirectory(dest.resolve("sourceFilePath"), projectDir.resolve())
     }
@@ -239,36 +264,17 @@ object ProjectManager {
 
     fun getRelPath(path: String): String {
         requireNotNull(currentProject)
-        if (path == currentProject!!.sourceFilePath)
-            return ""
-        val rootFilePath = currentProject!!.rootFile.absolutePath
-        val absPath = File(path).absolutePath
-        if (absPath.startsWith(rootFilePath)) {
-            // orig나 gen에 있다.
-            val orig = File(rootFilePath).resolve("original").path
-            Log.d(TAG, "absPath:$absPath  \n orig:$orig")
-            if (absPath.startsWith(orig)) {
-                return substringWithoutSlash(absPath, orig)
-            } else {
-                val gen = currentProject!!.generatedFolder
-                Log.d(TAG, "absPath:$absPath \n gen:$gen")
-                if (absPath.startsWith(gen)) {
-                    return substringWithoutSlash(absPath, gen)
+        return computeProjectRelativePath(currentProject!!, path)
+    }
+
+    fun getRelPathOrNull(path: String): String? {
+        val project = currentProject ?: return null
+        return computeProjectRelativePathOrNull(project, path)
+            .also {
+                if (it == null) {
+                    Logger.e(TAG, "Failed to resolve project-relative path for $path")
                 }
             }
-//            val subs = absPath.substring(rootFilePath.length)
-//            if (subs.isNotEmpty() && subs[0] == '/')
-//                return subs.substring(1)
-//            return subs
-        }
-        // 외부에 있다.
-        val srcPath = currentProject!!.sourceFilePath
-        if (absPath.startsWith(srcPath)) {
-            return substringWithoutSlash(absPath, srcPath)
-        }
-        Logger.e(TAG, "getRelPath called on $path")
-        assert(false)
-        return ""
     }
 
 //    fun getRelPathFromGen(path: String): String {
@@ -287,4 +293,95 @@ object ProjectManager {
             return sub.substring(1)
         return sub
     }
+}
+
+sealed class ProjectOpenAction {
+    data object PromptCopy : ProjectOpenAction()
+    data class OpenExistingProject(val projectInfoFile: File) : ProjectOpenAction()
+    data class ImportProjectArchive(val archiveFile: File) : ProjectOpenAction()
+}
+
+internal fun determineProjectOpenAction(targetFile: File, openAsProject: Boolean): ProjectOpenAction {
+    if (!openAsProject) {
+        return ProjectOpenAction.PromptCopy
+    }
+    projectInfoFileForDirectory(targetFile)?.let {
+        return ProjectOpenAction.OpenExistingProject(it)
+    }
+    if (isProjectArchiveFile(targetFile)) {
+        return ProjectOpenAction.ImportProjectArchive(targetFile)
+    }
+    return ProjectOpenAction.PromptCopy
+}
+
+internal fun projectInfoFileForDirectory(targetFile: File): File? {
+    if (!targetFile.isDirectory) {
+        return null
+    }
+    val projectInfoFile = targetFile.resolve("project_info.json")
+    return projectInfoFile.takeIf { it.isFile }
+}
+
+fun isProjectArchiveFile(targetFile: File): Boolean {
+    if (!targetFile.isFile || !targetFile.extension.equals("zip", ignoreCase = true)) {
+        return false
+    }
+    return runCatching {
+        ZipFile(targetFile).use { zipFile ->
+            zipFile.getEntry("project_info.json") != null
+        }
+    }.getOrDefault(false)
+}
+
+internal fun importedProjectInfoFile(projectDir: File): File {
+    return projectDir.resolve("project_info.json")
+}
+
+internal fun relocateImportedProjectModel(projectModel: ProjectModel, projectDir: File): ProjectModel {
+    return projectModel.copy(
+        generatedFolder = projectDir.resolve("baseFolder").path,
+        sourceFilePath = projectDir.resolve("sourceFilePath").path
+    )
+}
+
+fun computeProjectRelativePath(projectModel: ProjectModel, path: String): String {
+    if (path == projectModel.sourceFilePath) {
+        return ""
+    }
+
+    val rootFilePath = projectModel.rootFile.absolutePath
+    val absPath = File(path).absolutePath
+    if (absPath.startsWith(rootFilePath)) {
+        val orig = File(rootFilePath).resolve("original").path
+        if (absPath.startsWith(orig)) {
+            return substringWithoutLeadingSlash(absPath, orig)
+        }
+
+        val generated = File(projectModel.generatedFolder).absolutePath
+        if (absPath.startsWith(generated)) {
+            return substringWithoutLeadingSlash(absPath, generated)
+        }
+    }
+
+    val srcPath = projectModel.sourceFilePath
+    if (absPath.startsWith(srcPath)) {
+        return substringWithoutLeadingSlash(absPath, srcPath)
+    }
+
+    Logger.e("ProjectManager", "getRelPath called on $path")
+    throw IllegalArgumentException(
+        "Path $absPath is not inside project ${projectModel.rootFile.absolutePath}"
+    )
+}
+
+fun computeProjectRelativePathOrNull(projectModel: ProjectModel, path: String): String? {
+    return runCatching { computeProjectRelativePath(projectModel, path) }.getOrNull()
+}
+
+private fun substringWithoutLeadingSlash(path: String, prefix: String): String {
+    val sub = path.substring(prefix.length)
+    if (sub.isNotEmpty() && sub[0] == '/') {
+        return sub.substring(1)
+    }
+    return sub
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 fun <T> TableView(
     titles: List<Pair<String, Dp>>,
     items: List<T>,
+    key: ((T) -> Any)? = null,
     modifiers: (T, Int) -> Modifier = { _, _ -> Modifier },
     onItemLongClick: (T) -> Unit = {},
     onItemClick: (T) -> Unit = {},
@@ -36,7 +37,14 @@ fun <T> TableView(
         stickyHeader {
             TableViewHeader(titles)
         }
-        items(items) { item ->
+        items(
+            items = items,
+            key = if (key != null) {
+                { item -> key(item) }
+            } else {
+                null
+            }
+        ) { item ->
             Row(
                 Modifier
                     .height(IntrinsicSize.Min)

@@ -4,16 +4,21 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.kyhsgeekcode.disassembler.ProgressHandler
 import com.kyhsgeekcode.disassembler.databinding.ActivityNewFileChooserBinding
+import com.kyhsgeekcode.disassembler.preference.PowerUserModeSettings
+import com.kyhsgeekcode.disassembler.project.models.ProjectType
 import com.kyhsgeekcode.disassembler.showYesNoDialog
 import com.kyhsgeekcode.download
 import com.kyhsgeekcode.filechooser.model.FileItem
+import com.kyhsgeekcode.filechooser.model.FileItemApp
 import com.tingyik90.snackprogressbar.SnackProgressBar
 import com.tingyik90.snackprogressbar.SnackProgressBarManager
 import kotlinx.coroutines.CoroutineScope
@@ -26,8 +31,21 @@ import java.net.URL
 
 
 class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
+    companion object {
+        const val EXTRA_POWER_USER_MODE = "power_user_mode"
+        const val EXTRA_FILE_PATH = "selected_file_path"
+        const val EXTRA_NATIVE_FILE_PATH = "selected_native_file_path"
+        const val EXTRA_PROJECT_TYPE = "selected_project_type"
+    }
+
     private var _binding: ActivityNewFileChooserBinding? = null
     private val binding get() = _binding!!
+    private val powerUserMode by lazy {
+        intent?.getBooleanExtra(EXTRA_POWER_USER_MODE, false) ?: false
+    }
+    val advancedImportOptions by lazy {
+        PowerUserModeSettings.advancedImportOptions(this).copy(powerUserMode = powerUserMode)
+    }
 
     private val snackProgressBarManager by lazy {
         SnackProgressBarManager(
@@ -44,13 +62,27 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
     lateinit var adapter: NewFileChooserAdapter
     private lateinit var linearLayoutManager: LinearLayoutManager
     val TAG = "NewFileChooserA"
+    private val openDocumentLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { selectedUri ->
+            if (selectedUri == null) {
+                return@registerForActivityResult
+            }
+            grantReadPermission(selectedUri)
+            val resultIntent = Intent().apply {
+                putExtra("uri", selectedUri)
+                putExtra("displayName", queryDisplayName(selectedUri))
+                putExtra("openProject", false)
+            }
+            setResult(Activity.RESULT_OK, resultIntent)
+            finish()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.v(TAG, "onCreate")
         super.onCreate(savedInstanceState)
         _binding = ActivityNewFileChooserBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        adapter = NewFileChooserAdapter(this)
+        adapter = NewFileChooserAdapter(this, advancedImportOptions)
         lifecycleScope.launch {
             adapter.tryAddRootItems()
         }
@@ -61,17 +93,17 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
     }
 
     fun openAsProject(item: FileItem) {
-        val resultIntent = Intent()
-        resultIntent.putExtra("fileItem", item)
-        resultIntent.putExtra("openProject", true)
+        val resultIntent = selectedFileResultIntent(item).apply {
+            putExtra("openProject", true)
+        }
         setResult(Activity.RESULT_OK, resultIntent)
         finish()
     }
 
     fun openRaw(item: FileItem) {
-        val resultIntent = Intent()
-        resultIntent.putExtra("fileItem", item)
-        resultIntent.putExtra("openProject", false)
+        val resultIntent = selectedFileResultIntent(item).apply {
+            putExtra("openProject", false)
+        }
         setResult(Activity.RESULT_OK, resultIntent)
         finish()
     }
@@ -107,34 +139,7 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
     }
 
     fun showOtherChooser() {
-        val intent = Intent()
-        intent.type = "*/*"
-        intent.action = Intent.ACTION_GET_CONTENT
-        startActivityForResult(Intent.createChooser(intent, "Choose Content"), 1)
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 1 && resultCode == Activity.RESULT_OK && data != null) {
-            val selectedUri = data.data
-            val resultIntent = Intent()
-//            resultIntent.putExtra("fileItem", FileItem())
-            Log.e(TAG, "selecteduri:${data.data}")
-            Log.e("intent URI", intent.toUri(0))
-            val bundle = data.extras
-            if (bundle != null) {
-                for (key in bundle.keySet()) {
-                    Log.e(TAG, key + " : " + if (bundle[key] != null) bundle[key] else "NULL")
-                }
-            } else {
-                Log.e(TAG, "Bundle is null")
-            }
-            resultIntent.putExtra("uri", selectedUri)
-            resultIntent.putExtra("extras", data.extras)
-            resultIntent.putExtra("openProject", false)
-            setResult(Activity.RESULT_OK, resultIntent)
-            finish()
-        }
+        openDocumentLauncher.launch(arrayOf("*/*"))
     }
 
     fun showZoo() {
@@ -195,6 +200,52 @@ class NewFileChooserActivity : AppCompatActivity(), ProgressHandler {
             },
             null
         )
+    }
+
+    private fun grantReadPermission(selectedUri: Uri) {
+        try {
+            contentResolver.takePersistableUriPermission(
+                selectedUri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Persistable URI permission not available for $selectedUri", e)
+        }
+    }
+
+    private fun queryDisplayName(selectedUri: Uri): String? {
+        contentResolver.query(
+            selectedUri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val displayNameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (displayNameIndex >= 0 && cursor.moveToFirst()) {
+                return cursor.getString(displayNameIndex)
+            }
+        }
+        return null
+    }
+
+    private fun selectedFileResultIntent(item: FileItem): Intent {
+        val file = requireNotNull(item.file) { "Cannot return chooser result without a backing file" }
+        return Intent().apply {
+            putExtra(EXTRA_FILE_PATH, file.absolutePath)
+            putExtra(EXTRA_PROJECT_TYPE, projectTypeFor(item))
+            if (item is FileItemApp) {
+                putExtra(EXTRA_NATIVE_FILE_PATH, item.nativeFile.absolutePath)
+            }
+        }
+    }
+
+    private fun projectTypeFor(item: FileItem): String {
+        return if (item is FileItemApp) {
+            ProjectType.APK
+        } else {
+            ProjectType.UNKNOWN
+        }
     }
 
 }

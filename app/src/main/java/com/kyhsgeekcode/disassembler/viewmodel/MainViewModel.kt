@@ -4,6 +4,10 @@ import android.app.Application
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Parcelable
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import at.pollaknet.api.facile.FacileReflector
@@ -12,16 +16,23 @@ import at.pollaknet.api.facile.symtab.symbols.Method
 import com.kyhsgeekcode.FileExtensions
 import com.kyhsgeekcode.TAG
 import com.kyhsgeekcode.disassembler.*
+import com.kyhsgeekcode.disassembler.exporting.buildProjectExportFileName
+import com.kyhsgeekcode.disassembler.exporting.copyFileToDocument
 import com.kyhsgeekcode.disassembler.project.ProjectDataStorage
 import com.kyhsgeekcode.disassembler.project.ProjectManager
+import com.kyhsgeekcode.disassembler.project.ProjectOpenAction
 import com.kyhsgeekcode.disassembler.project.models.ProjectModel
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceKind
 import com.kyhsgeekcode.disassembler.project.models.ProjectType
+import com.kyhsgeekcode.disassembler.project.determineProjectOpenAction
 import com.kyhsgeekcode.disassembler.ui.FileDrawerTreeItem
 import com.kyhsgeekcode.disassembler.ui.TabData
 import com.kyhsgeekcode.disassembler.ui.TabKind
 import com.kyhsgeekcode.disassembler.ui.tabs.*
 import com.kyhsgeekcode.filechooser.model.FileItem
 import com.kyhsgeekcode.filechooser.model.FileItemApp
+import com.kyhsgeekcode.filechooser.NewFileChooserActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -30,6 +41,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
+import java.io.IOException
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -108,44 +120,111 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onSelectIntent(intent: Intent) {
         Timber.d("onActivityResultOk")
         _openAsProject.value = intent.getBooleanExtra("openProject", false)
-        val fi = intent.getSerializableExtra("fileItem") as? FileItem
+        val selectedFilePayload = selectedFileIntentPayload(intent)
+        if (selectedFilePayload != null) {
+            onSelectFilePayload(selectedFilePayload)
+            return
+        }
+        val fi = intent.serializableExtraCompat<FileItem>("fileItem")
         if (fi != null) {
             onSelectFileItem(fi)
         } else {
-            val uri = intent.getParcelableExtra("uri") as Uri?
-                ?: intent.getBundleExtra("extras")?.get(Intent.EXTRA_STREAM) as Uri?
+            val displayName = intent.getStringExtra("displayName")
+            val uri = intent.parcelableExtraCompat<Uri>("uri")
+                ?: intent.extras.parcelableExtraCompat(Intent.EXTRA_STREAM)
                 ?: return
-            onSelectUri(uri)
+            onSelectUri(uri, displayName)
         }
     }
 
     private fun onSelectFileItem(fileItem: FileItem) {
-        _file.value = fileItem.file ?: run {
+        val file = fileItem.file ?: run {
             Logger.e(TAG, "Failed to load fileItem: $fileItem")
             return@onSelectFileItem
         }
-        _nativeFile.value = if (fileItem is FileItemApp) {
-            fileItem.nativeFile
-        } else {
-            null
-        }
-        _projectType.value = fileItemTypeToProjectType(fileItem)
-        _askCopy.value = true
+        onSelectFilePayload(
+            SelectedFileIntentPayload(
+                filePath = file.absolutePath,
+                nativeFilePath = (fileItem as? FileItemApp)?.nativeFile?.absolutePath,
+                projectType = fileItemTypeToProjectType(fileItem)
+            )
+        )
     }
 
-    private fun onSelectUri(uri: Uri) {
+    private fun onSelectFilePayload(payload: SelectedFileIntentPayload) {
+        val selectedFile = File(payload.filePath)
+        when (val action = determineProjectOpenAction(selectedFile, _openAsProject.value)) {
+            ProjectOpenAction.PromptCopy -> {
+                _file.value = selectedFile
+                _nativeFile.value = payload.nativeFilePath?.let(::File)
+                _projectType.value = payload.projectType
+                _askCopy.value = true
+            }
+
+            is ProjectOpenAction.OpenExistingProject -> {
+                openExistingProject(action.projectInfoFile)
+            }
+
+            is ProjectOpenAction.ImportProjectArchive -> {
+                importProjectArchive(action.archiveFile)
+            }
+        }
+    }
+
+    private fun openExistingProject(projectInfoFile: File) {
+        viewModelScope.launch {
+            eventChannel.send(Event.StartProgress())
+            try {
+                val project = withContext(Dispatchers.IO) {
+                    ProjectManager.openProject(projectInfoFile.absolutePath)
+                }
+                _selectedFilePath.value = project.sourceFilePath
+                _currentProject.value = project
+            } catch (e: Exception) {
+                eventChannel.send(Event.AlertError("Failed to open project"))
+            }
+            eventChannel.send(Event.FinishProgress())
+        }
+    }
+
+    private fun importProjectArchive(archiveFile: File) {
+        viewModelScope.launch {
+            eventChannel.send(Event.StartProgress())
+            try {
+                val project = withContext(Dispatchers.IO) {
+                    ProjectManager.import(archiveFile)
+                }
+                _selectedFilePath.value = project.sourceFilePath
+                _currentProject.value = project
+            } catch (e: Exception) {
+                eventChannel.send(Event.AlertError("Failed to import project"))
+            }
+            eventChannel.send(Event.FinishProgress())
+        }
+    }
+
+    private fun onSelectUri(uri: Uri, displayName: String? = null) {
         if (uri.scheme == "content") {
             try {
                 val app = getApplication<Application>()
                 app.contentResolver.openInputStream(uri).use { inStream ->
-                    val file = app.getExternalFilesDir(null)?.resolve("tmp")?.resolve("openDirect")
-                        ?: return
-                    file.parentFile.mkdirs()
+                    requireNotNull(inStream) { "Failed to open content URI: $uri" }
+                    val fileName = resolveImportedFileName(app, uri, displayName)
+                    val file = resolveImportedDestinationFile(
+                        app.filesDir.resolve("imports"),
+                        fileName
+                    )
+                    file.parentFile?.mkdirs()
                     file.outputStream().use { fileOut ->
-                        inStream?.copyTo(fileOut)
+                        inStream.copyTo(fileOut)
                     }
-                    val project =
-                        ProjectManager.newProject(file, ProjectType.UNKNOWN, file.name, true)
+                    val project = ProjectManager.newProject(
+                        file,
+                        ProjectType.UNKNOWN,
+                        file.name,
+                        true,
+                        ProjectSourceDescriptor(ProjectSourceKind.CONTENT_URI, uri.toString())
+                    )
                     _selectedFilePath.value = project.sourceFilePath
                     _currentProject.value = project
                 }
@@ -291,6 +370,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _showSearchForStrings.value = ShowSearchForStringsDialog.NotShown
     }
 
+    suspend fun exportCurrentProject(destinationUri: Uri): Result<Unit> {
+        val project = currentProject.value ?: return Result.failure(
+            IllegalStateException("No project is open")
+        )
+        return runCatching {
+            val application = getApplication<Application>()
+            val tempArchive = withContext(Dispatchers.IO) {
+                val exportDir = application.cacheDir.resolve("exports")
+                exportDir.mkdirs()
+                val outFile = exportDir.resolve(buildProjectExportFileName(project.name))
+                if (ProjectManager.exportArchive(project, outFile).not()) {
+                    throw IOException("Failed to export project archive")
+                }
+                outFile
+            }
+            withContext(Dispatchers.IO) {
+                copyFileToDocument(application.contentResolver, tempArchive, destinationUri)
+            }
+        }
+    }
+
     fun reallySearchForStrings(from: String, to: String) {
         _showSearchForStrings.value = ShowSearchForStringsDialog.NotShown
         val f = from.toIntOrNull() ?: return
@@ -317,6 +417,111 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
+internal fun sanitizeImportedFileName(displayName: String?): String {
+    val normalized = displayName
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?.replace(Regex("""[/\\]+"""), "_")
+    return normalized ?: "openDirect"
+}
+
+internal fun resolveImportedDestinationFile(importsDir: File, displayName: String?): File {
+    val sanitizedName = sanitizeImportedFileName(displayName)
+    var candidate = importsDir.resolve(sanitizedName)
+    if (!candidate.exists()) {
+        return candidate
+    }
+
+    val baseName = candidate.nameWithoutExtension.ifBlank { candidate.name }
+    val extensionSuffix = candidate.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: ""
+    var index = 1
+    while (candidate.exists()) {
+        candidate = importsDir.resolve("${baseName}_$index$extensionSuffix")
+        index++
+    }
+    return candidate
+}
+
+private fun resolveImportedFileName(
+    app: Application,
+    uri: Uri,
+    suggestedDisplayName: String?
+): String {
+    val displayName = suggestedDisplayName
+        ?: app.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val displayNameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (displayNameIndex >= 0 && cursor.moveToFirst()) {
+                cursor.getString(displayNameIndex)
+            } else {
+                null
+            }
+        }
+        ?: uri.lastPathSegment
+    return sanitizeImportedFileName(displayName)
+}
+
+private inline fun <reified T : Parcelable> Intent.parcelableExtraCompat(key: String): T? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableExtra(key, T::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelableExtra(key)
+    }
+}
+
+private inline fun <reified T : Parcelable> Bundle?.parcelableExtraCompat(key: String): T? {
+    return if (this == null) {
+        null
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelable(key, T::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelable(key)
+    }
+}
+
+private inline fun <reified T : java.io.Serializable> Intent.serializableExtraCompat(key: String): T? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getSerializableExtra(key, T::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getSerializableExtra(key) as? T
+    }
+}
+
+internal data class SelectedFileIntentPayload(
+    val filePath: String,
+    val nativeFilePath: String?,
+    val projectType: String
+)
+
+internal fun selectedFileIntentPayload(intent: Intent): SelectedFileIntentPayload? {
+    return selectedFileIntentPayload(
+        filePath = intent.getStringExtra(NewFileChooserActivity.EXTRA_FILE_PATH),
+        nativeFilePath = intent.getStringExtra(NewFileChooserActivity.EXTRA_NATIVE_FILE_PATH),
+        projectType = intent.getStringExtra(NewFileChooserActivity.EXTRA_PROJECT_TYPE)
+    )
+}
+
+internal fun selectedFileIntentPayload(
+    filePath: String?,
+    nativeFilePath: String?,
+    projectType: String?
+): SelectedFileIntentPayload? {
+    val resolvedFilePath = filePath ?: return null
+    return SelectedFileIntentPayload(
+        filePath = resolvedFilePath,
+        nativeFilePath = nativeFilePath,
+        projectType = projectType ?: ProjectType.UNKNOWN
+    )
+}
+
 
 private fun createTabData(item: FileDrawerTreeItem): TabData {
     var title = "${item.caption} as ${item.type}"
@@ -333,7 +538,8 @@ private fun createTabData(item: FileDrawerTreeItem): TabData {
 //        Log.d(TAG, "rootPath:${rootPath}")
     Timber.d("absPath:$abspath")
     val ext = File(abspath).extension.lowercase(Locale.getDefault())
-    val relPath: String = ProjectManager.getRelPath(abspath)
+    val relPath = ProjectManager.getRelPathOrNull(abspath)
+        ?: return buildUnavailablePathTabData(item.caption, abspath)
 //        if (abspath.length > rootPath.length)
 //            relPath = abspath.substring(rootPath.length+2)
 //        else
@@ -372,6 +578,15 @@ private fun createTabData(item: FileDrawerTreeItem): TabData {
     return TabData(title, tabkind)
 }
 
+private fun buildUnavailablePathTabData(caption: String, abspath: String): TabData {
+    val key = "unavailable:${abspath.hashCode()}"
+    ProjectDataStorage.putFileContent(
+        key,
+        "The selected entry is no longer inside the current project:\n$abspath".encodeToByteArray()
+    )
+    return TabData("$caption unavailable", TabKind.Text(key))
+}
+
 fun fileItemTypeToProjectType(fileItem: FileItem): String {
     if (fileItem is FileItemApp)
         return ProjectType.APK
@@ -380,7 +595,7 @@ fun fileItemTypeToProjectType(fileItem: FileItem): String {
 
 fun copyNativeDirToProject(nativeFile: File?, project: ProjectModel) {
     if (nativeFile != null && nativeFile.exists() && nativeFile.canRead()) {
-        val targetFolder = File(project.sourceFilePath + "_libs")
+        val targetFolder = project.sourceLibrariesDirectory
         targetFolder.mkdirs()
         var targetFile = targetFolder.resolve(nativeFile.name)
         var i = 0
@@ -392,4 +607,3 @@ fun copyNativeDirToProject(nativeFile: File?, project: ProjectModel) {
         copyDirectory(nativeFile, targetFile)
     }
 }
-

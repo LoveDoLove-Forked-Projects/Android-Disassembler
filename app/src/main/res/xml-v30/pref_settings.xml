@@ -9,15 +9,6 @@
             android:negativeButtonText="@null"
             android:positiveButtonText="@null"
             android:title="Choose a prebuilt theme" />
-        <!--ListPreference
-            android:defaultValue="0"
-            android:entries="@array/filepickers"
-            android:entryValues="@array/filepickers_values"
-            android:key="filepicker"
-            android:negativeButtonText="@null"
-            android:positiveButtonText="@null"
-            android:title="Choose a file picker to use" / -->
-
         <!--com.skydoves.colorpickerpreference.ColorPickerPreference
         android:key="h"
         android:title="Toolbar Color"
@@ -29,10 +20,27 @@
         app:preference_selector="wheel"
         app:default_color="colorPrimary"/-->
     </PreferenceCategory>
-    <PreferenceCategory android:title="Security configuration">
-        <Preference android:title="Manage this app\'s all storage access">
-            <intent android:action="android.settings.MANAGE_ALL_FILES_ACCESS_PERMISSION" />
-        </Preference>
+    <PreferenceCategory android:title="@string/power_user_features">
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="power_user_import_mode"
+            android:summary="@string/power_user_import_summary"
+            android:title="@string/power_user_import_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="power_user_filesystem_import"
+            android:summary="@string/power_user_filesystem_import_summary"
+            android:title="@string/power_user_filesystem_import_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="power_user_apps_import"
+            android:summary="@string/power_user_apps_import_summary"
+            android:title="@string/power_user_apps_import_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="power_user_research_tools_import"
+            android:summary="@string/power_user_research_tools_import_summary"
+            android:title="@string/power_user_research_tools_import_title" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/app_info">
         <Preference

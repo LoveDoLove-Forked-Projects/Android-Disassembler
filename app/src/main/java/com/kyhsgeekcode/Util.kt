@@ -41,44 +41,51 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
 fun extractZip(from: File, toDir: File, publisher: (Long, Long) -> Unit = { _, _ -> }) {
-    val zi = ZipInputStream(from.inputStream())
-    var entry: ZipEntry
     val buffer = ByteArray(2048)
     var processed = 0L
     val total = from.length()
-    while (zi.nextEntry.also { entry = it } != null) {
-        val name = entry.name
-        val outfile = File(toDir, name)
-        outfile.delete()
-        outfile.parentFile.mkdirs()
-        val canonicalPath: String = outfile.canonicalPath
-        if (!canonicalPath.startsWith(toDir.canonicalPath)) {
-            throw SecurityException(
-                "The zip/apk file may have a Zip Path Traversal Vulnerability." +
-                        "Is the zip/apk file trusted?"
-            )
-        }
-        var output: FileOutputStream? = null
-        try {
-            output = FileOutputStream(outfile)
-            var len: Int
-            while (zi.read(buffer).also { len = it } > 0) {
-                output.write(buffer, 0, len)
+    ZipInputStream(from.inputStream()).use { zi ->
+        var entry: ZipEntry?
+        while (zi.nextEntry.also { entry = it } != null) {
+            val zipEntry = entry ?: continue
+            val outfile = File(toDir, zipEntry.name)
+            val canonicalPath = outfile.canonicalPath
+            if (!canonicalPath.startsWith(toDir.canonicalPath)) {
+                throw SecurityException(
+                    "The zip/apk file may have a Zip Path Traversal Vulnerability." +
+                            "Is the zip/apk file trusted?"
+                )
             }
-        } finally { // we must always close the output file
-            output?.close()
+            if (zipEntry.isDirectory) {
+                if (!outfile.isDirectory && !outfile.mkdirs()) {
+                    throw IOException("failed to create directory $outfile")
+                }
+                continue
+            }
+            val parent = outfile.parentFile
+            if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
+                throw IOException("failed to create directory $parent")
+            }
+            outfile.outputStream().use { output ->
+                var len: Int
+                while (zi.read(buffer).also { len = it } > 0) {
+                    output.write(buffer, 0, len)
+                }
+            }
+            processed += maxOf(zipEntry.compressedSize, zipEntry.size, 0L)
+            publisher(processed, total)
         }
-        processed += entry.size
-        publisher(total, processed)
-        zi.close()
     }
 }
 
 fun File.isArchive(): Boolean {
+    if (isKnownArchiveExtension(name)) {
+        return true
+    }
     return try {
         ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(inputStream()))
         true
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         false
     }
 }
@@ -115,96 +122,117 @@ suspend fun extract(
     publisher: (Long, Long) -> Unit = { current, total -> }
 ) =
     withContext(Dispatchers.IO) {
-        Log.v("extract", "File:${from.path}")
-        var archi: ArchiveInputStream? = null
-        val totalSize = from.length()
-        try {
-            archi =
-                ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(from.inputStream()))
-            var entry: ArchiveEntry?
-
-            while (archi.nextEntry.also { entry = it } != null) {
-                if (entry!!.name == "")
-                    continue
-                if (!archi.canReadEntryData(entry)) {
-                    // log something?
-                    Log.e("Extract archive", "Cannot read entry data")
-                    continue
-                }
-                val f = toDir.resolve(entry?.name!!)
-                if (entry!!.isDirectory) {
-                    if (!f.isDirectory && !f.mkdirs()) {
-                        throw IOException("failed to create directory $f")
-                    }
-                } else {
-                    val parent = f.parentFile
-                    if (!parent.isDirectory && !parent.mkdirs()) {
-                        throw IOException("failed to create directory $parent")
-                    }
-                    if (!f.canonicalPath.startsWith(toDir.canonicalPath)) {
-                        throw SecurityException(
-                            "The zip/apk file may have a Zip Path Traversal Vulnerability." +
-                                    "Is the zip/apk file trusted?"
-                        )
-                    }
-                    val o = f.outputStream()
-                    IOUtils.copy(archi, o)
-                    o.close()
-                }
-                withContext(Dispatchers.Main) {
-                    publisher(archi.bytesRead, totalSize)
-                }
-            }
-        } catch (e: ArchiveException) {
-            Log.e("Extract archive", "error inflating", e)
-        } catch (e: ZipException) {
-            Log.e("Extract archive", "error inflating", e)
-        } finally {
-            archi?.close()
+        extractSupportedArchive(from, toDir) { current, total ->
+            publisher(current, total)
         }
     }
 
+@Throws(IOException::class, SecurityException::class)
+fun extractSupportedArchive(
+    from: File,
+    toDir: File,
+    publisher: (Long, Long) -> Unit = { _, _ -> }
+) {
+    if (from.extension.equals("zip", true) ||
+        from.extension.equals("apk", true) ||
+        from.extension.equals("jar", true) ||
+        from.extension.equals("aar", true)
+    ) {
+        extractZip(from, toDir, publisher)
+        return
+    }
+    val totalSize = from.length()
+    try {
+        ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(from.inputStream())).use { archi ->
+            var entry: ArchiveEntry?
+            while (archi.nextEntry.also { entry = it } != null) {
+                val archiveEntry = entry ?: continue
+                if (archiveEntry.name.isBlank()) continue
+                if (!archi.canReadEntryData(archiveEntry)) {
+                    continue
+                }
+
+                val outputFile = toDir.resolve(archiveEntry.name)
+                val canonicalPath = outputFile.canonicalPath
+                if (!canonicalPath.startsWith(toDir.canonicalPath)) {
+                    throw SecurityException(
+                        "The archive file may have a Zip Path Traversal Vulnerability." +
+                                "Is the archive file trusted?"
+                    )
+                }
+
+                if (archiveEntry.isDirectory) {
+                    if (!outputFile.isDirectory && !outputFile.mkdirs()) {
+                        throw IOException("failed to create directory $outputFile")
+                    }
+                } else {
+                    val parent = outputFile.parentFile
+                    if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
+                        throw IOException("failed to create directory $parent")
+                    }
+                    outputFile.outputStream().use { output ->
+                        IOUtils.copy(archi, output)
+                    }
+                }
+                publisher(archi.bytesRead, totalSize)
+            }
+        }
+    } catch (e: NoClassDefFoundError) {
+        throw IOException("archive support is unavailable on this device for ${from.extension}", e)
+    } catch (e: ArchiveException) {
+        throw IOException("error inflating archive", e)
+    } catch (e: ZipException) {
+        throw IOException("error inflating archive", e)
+    }
+}
+
 fun String.toValidFileName(): String {
-    return this.replace("[\\\\/:*?\"<>|]", "")
+    return this.replace(Regex("[\\\\/:*?\"<>|]"), "")
 }
 
 // MAYBE BUG : relName to entry name
 fun saveAsZip(dest: File, vararg sources: Pair<String, String>) {
-    val archiveStream: OutputStream = FileOutputStream(dest)
-    val archive =
-        ArchiveStreamFactory().createArchiveOutputStream(ArchiveStreamFactory.ZIP, archiveStream)
-    for (source in sources) {
-        val from = source.first
-        val to = source.second
-        val fromFile = File(from)
-        val toFile = File(to)
-        if (fromFile.isDirectory) {
-            val fileList = fromFile.listFiles() // .listOrEmpty(fromFile, null, true)
-            for (file in fileList) {
-                val relName: String = getEntryName(fromFile, file)
-                val splitName = relName.split(File.separatorChar)
-                val entryName = toFile.resolve(
-                    splitName.subList(1, splitName.size - 1).joinToString(File.separator)
-                ).absolutePath
+    dest.parentFile?.mkdirs()
+    FileOutputStream(dest).use { archiveStream ->
+        val archive =
+            ArchiveStreamFactory().createArchiveOutputStream(ArchiveStreamFactory.ZIP, archiveStream)
+        for ((from, to) in sources) {
+            addPathToZip(archive, File(from), to)
+        }
+        archive.close()
+    }
+}
+
+private fun addPathToZip(
+    archive: org.apache.commons.compress.archivers.ArchiveOutputStream,
+    fromFile: File,
+    targetPath: String
+) {
+    val normalizedTargetPath = targetPath.replace('\\', '/').trim('/')
+    if (fromFile.isDirectory) {
+        fromFile.walkTopDown()
+            .filter { it.isFile }
+            .forEach { file ->
+                val relativePath = file.relativeTo(fromFile).invariantSeparatorsPath
+                val entryName = listOf(normalizedTargetPath, relativePath)
+                    .filter { it.isNotEmpty() }
+                    .joinToString("/")
                 val entry = ZipArchiveEntry(entryName)
                 archive.putArchiveEntry(entry)
-                val input = BufferedInputStream(FileInputStream(file))
-                IOUtils.copy(input, archive)
-                input.close()
+                BufferedInputStream(FileInputStream(file)).use { input ->
+                    IOUtils.copy(input, archive)
+                }
                 archive.closeArchiveEntry()
             }
-        } else {
-            val entryName = to
-            val entry = ZipArchiveEntry(entryName)
-            archive.putArchiveEntry(entry)
-            val input = BufferedInputStream(FileInputStream(fromFile))
-            IOUtils.copy(input, archive)
-            input.close()
-            archive.closeArchiveEntry()
-        }
+        return
     }
-    archive.close()
-    archiveStream.close()
+
+    val entry = ZipArchiveEntry(normalizedTargetPath)
+    archive.putArchiveEntry(entry)
+    BufferedInputStream(FileInputStream(fromFile)).use { input ->
+        IOUtils.copy(input, archive)
+    }
+    archive.closeArchiveEntry()
 }
 
 /**
@@ -285,7 +313,7 @@ fun sendErrorReport(error: Throwable) {
     var ver = ""
     try {
         val pInfo = appCtx.packageManager.getPackageInfo(appCtx.packageName, 0)
-        ver = pInfo.versionName
+        ver = pInfo.versionName ?: ""
     } catch (e: PackageManager.NameNotFoundException) {
         e.printStackTrace()
     }

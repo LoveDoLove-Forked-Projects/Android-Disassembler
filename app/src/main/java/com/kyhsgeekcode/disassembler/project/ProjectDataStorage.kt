@@ -12,13 +12,24 @@ object ProjectDataStorage {
     fun getFileContent(relPath: String): ByteArray {
         val key = Pair(relPath, DataType.FileContent)
         if (!data.containsKey(key)) {
-            data[key] = resolveToRead(relPath)!!.readBytes()
+            val file = resolveToRead(relPath)!!
+            val bytes = file.readBytes()
+            if (shouldCacheFileContent(file.length())) {
+                data[key] = bytes
+            } else {
+                return bytes
+            }
         }
         return data[key] as ByteArray
     }
 
     fun getExtension(relPath: String): String {
         return resolveToRead(relPath)?.extension ?: ""
+    }
+
+    fun getFileContentPreview(relPath: String, maxBytes: Int): ByteArray {
+        val file = resolveToRead(relPath)!!
+        return readPreviewBytes(file, maxBytes)
     }
 
 //    @UnstableDefault
@@ -36,7 +47,7 @@ object ProjectDataStorage {
     fun resolveToRead(relPath: String): File? {
         requireNotNull(ProjectManager.currentProject)
         val paths = relPath.split("/")
-        val projectOrig = File(ProjectManager.currentProject!!.sourceFilePath)
+        val projectOrig = ProjectManager.currentProject!!.sourceFile
         var file = projectOrig.resolve(relPath)
         Log.d(TAG, "Orig cand: $file")
         if (file.exists() && !file.isDirectory)
@@ -47,7 +58,7 @@ object ProjectDataStorage {
                 return newfile
         }
         Log.d(TAG, "Could not find from orig:$relPath")
-        file = projectOrig.parentFile.resolve(relPath)
+        file = requireNotNull(projectOrig.parentFile).resolve(relPath)
         if (file.exists() && !file.isDirectory)
             return file
         Log.d(TAG, "Could not find from libs: $file")
@@ -134,6 +145,24 @@ object ProjectDataStorage {
     fun putFileContent(keykey: String, datadata: ByteArray) {
         val key = Pair(keykey, DataType.FileContent)
         data[key] = datadata
+    }
+}
+
+internal const val MAX_CACHED_FILE_CONTENT_BYTES = 8L * 1024 * 1024
+
+internal fun shouldCacheFileContent(sizeBytes: Long): Boolean {
+    return sizeBytes <= MAX_CACHED_FILE_CONTENT_BYTES
+}
+
+internal fun readPreviewBytes(file: File, maxBytes: Int): ByteArray {
+    require(maxBytes >= 0) { "maxBytes must be non-negative" }
+    if (maxBytes == 0) {
+        return byteArrayOf()
+    }
+    file.inputStream().use { inputStream ->
+        val buffer = ByteArray(maxBytes)
+        val bytesRead = inputStream.read(buffer, 0, maxBytes).coerceAtLeast(0)
+        return buffer.copyOf(bytesRead)
     }
 }
 
