@@ -11,6 +11,16 @@
 - `obsolete-or-policy-invalid`
 - `planned-fast-follow`
 
+## Supplemental Labels
+- `future-scope`
+
+## Label Rules
+### `future-scope`
+- Use when an issue is a legitimate future capability, but it is outside the current maintenance baseline.
+- Do not close these as `not planned` if the intent is "later, not now".
+- Keep them open with the `future-scope` label so they remain visible without polluting the active maintenance slice.
+- Typical cases: recompile/edit workflows, advanced code reconstruction, power-user automation features that are not needed for baseline recovery.
+
 ## Decision Rules
 ### `baseline-blocked`
 - Use when the issue cannot be evaluated until the repository builds or tests again.
