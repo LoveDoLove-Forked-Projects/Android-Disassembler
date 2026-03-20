@@ -27,6 +27,11 @@ object ProjectDataStorage {
         return resolveToRead(relPath)?.extension ?: ""
     }
 
+    fun getFileContentPreview(relPath: String, maxBytes: Int): ByteArray {
+        val file = resolveToRead(relPath)!!
+        return readPreviewBytes(file, maxBytes)
+    }
+
 //    @UnstableDefault
 //    private fun getOriginalOrGen(relPath: String): File {
 //        val orig = ProjectManager.getOriginal(relPath)
@@ -147,6 +152,18 @@ internal const val MAX_CACHED_FILE_CONTENT_BYTES = 8L * 1024 * 1024
 
 internal fun shouldCacheFileContent(sizeBytes: Long): Boolean {
     return sizeBytes <= MAX_CACHED_FILE_CONTENT_BYTES
+}
+
+internal fun readPreviewBytes(file: File, maxBytes: Int): ByteArray {
+    require(maxBytes >= 0) { "maxBytes must be non-negative" }
+    if (maxBytes == 0) {
+        return byteArrayOf()
+    }
+    file.inputStream().use { inputStream ->
+        val buffer = ByteArray(maxBytes)
+        val bytesRead = inputStream.read(buffer, 0, maxBytes).coerceAtLeast(0)
+        return buffer.copyOf(bytesRead)
+    }
 }
 
 enum class DataType {

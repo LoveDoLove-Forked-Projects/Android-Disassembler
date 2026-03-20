@@ -20,7 +20,12 @@ class HexTabData(val data: TabKind.Hex) : PreparedTabData() {
     val preview = _preview as StateFlow<com.kyhsgeekcode.disassembler.ui.components.HexPreview>
 
     override suspend fun prepare() {
-        _preview.value = buildHexPreview(ProjectDataStorage.getFileContent(data.relPath))
+        _preview.value = buildHexPreview(
+            ProjectDataStorage.getFileContentPreview(
+                data.relPath,
+                com.kyhsgeekcode.disassembler.ui.components.MAX_RENDERED_HEX_BYTES
+            )
+        )
     }
 }
 

@@ -48,7 +48,9 @@ class TextTabData(val data: TabKind.Text) : PreparedTabData() {
     val notice = _notice as StateFlow<String?>
 
     override suspend fun prepare() {
-        val preview = buildTextContentPreview(ProjectDataStorage.getFileContent(relPath))
+        val preview = buildTextContentPreview(
+            ProjectDataStorage.getFileContentPreview(relPath, MAX_RENDERED_TEXT_BYTES)
+        )
         _notice.value = if (preview.isTruncated) {
             "Showing first ${preview.bytes.size} bytes of ${preview.originalSize} bytes"
         } else {

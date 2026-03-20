@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import timber.log.Timber
 
+private const val MAX_ANALYZED_FILE_BYTES = 512 * 1024
 
 sealed class AnalysisState {
     object Ready : AnalysisState()
@@ -37,11 +38,19 @@ class AnalysisTabData(val data: TabKind.AnalysisResult) : PreparedTabData() {
     val state = _state as StateFlow<AnalysisState>
     private val _image = MutableStateFlow<Drawable?>(null)
     val image = _image as StateFlow<Drawable?>
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice = _notice as StateFlow<String?>
 
     lateinit var analyzer: Analyzer
     override suspend fun prepare() {
-        val bytes = ProjectDataStorage.getFileContent(data.relPath)
+        val bytes = ProjectDataStorage.getFileContentPreview(data.relPath, MAX_ANALYZED_FILE_BYTES)
         Timber.d("Given relPath: ${data.relPath}")
+        val fileSize = ProjectDataStorage.resolveToRead(data.relPath)?.length() ?: bytes.size.toLong()
+        _notice.value = if (fileSize > bytes.size) {
+            "Analyzing first ${bytes.size} bytes of $fileSize bytes"
+        } else {
+            null
+        }
         analyzer = Analyzer(bytes)
         analyzer.analyze { c, t, stage ->
             _state.value = AnalysisState.Running(c, t, stage)
@@ -60,6 +69,7 @@ fun AnalysisTab(data: TabData, viewModel: MainViewModel) {
     val result = preparedTabData.result.collectAsState()
     val state = preparedTabData.state.collectAsState()
     val image = preparedTabData.image.collectAsState()
+    val notice = preparedTabData.notice.collectAsState()
 
     Column(
         Modifier
@@ -67,6 +77,7 @@ fun AnalysisTab(data: TabData, viewModel: MainViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        notice.value?.let { Text(it) }
         when (val s = state.value) {
             is AnalysisState.Ready -> {
 
