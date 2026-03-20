@@ -88,6 +88,7 @@
 | project-relative path null-safe helper 테스트 | 통과 | project 경계 밖 경로는 예외 대신 `null`을 반환하고, UI 호출부가 이를 흡수할 수 있는 계약을 고정 |
 | 강화된 instrumentation APK 컴파일 | 통과 | SAF import, advanced import, project archive reopen, export flow instrumentation 테스트가 `assembleDebugAndroidTest`까지 묶이는지 확인 |
 | CI instrumentation 회귀 수정 | 통과 | project archive reopen fixture를 경량 ZIP으로 고정하고 export 완료 Toast를 main thread로 이동해 GitHub Actions emulator 실패 원인을 제거 |
+| CI advanced import 회귀 수정 | 통과 | 일반 파일 advanced import는 즉시 프로젝트 진입이 아니라 `Copy?` 확인을 거치므로, instrumentation 테스트를 실제 사용자 플로우에 맞게 수정 |
 | workflow YAML 파싱 | 통과 | `.github/workflows/ci.yml`, `.github/workflows/release.yml` 모두 Ruby YAML 파서 기준 확인 |
 
 ## 다음 웨이브 후보

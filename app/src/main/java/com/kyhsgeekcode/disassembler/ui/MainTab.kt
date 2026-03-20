@@ -190,13 +190,17 @@ fun ProjectOverview(viewModel: MainViewModel) {
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Button(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag(MainTestTags.COPY_DIALOG_NO_BUTTON),
                         onClick = { viewModel.onCopy(false) }
                     ) {
                         Text("No")
                     }
                     Button(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag(MainTestTags.COPY_DIALOG_YES_BUTTON),
                         onClick = { viewModel.onCopy(true) }
                     ) {
                         Text("Yes")

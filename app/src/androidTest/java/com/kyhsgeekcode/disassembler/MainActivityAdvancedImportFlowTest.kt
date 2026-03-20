@@ -59,6 +59,8 @@ class MainActivityAdvancedImportFlowTest {
 
         composeRule.onNodeWithTag(MainTestTags.IMPORT_ADVANCED_BUTTON).performClick()
 
+        composeRule.onNodeWithTag(MainTestTags.COPY_DIALOG_YES_BUTTON).performClick()
+
         composeRule.waitUntil(timeoutMillis = PROJECT_OPEN_TIMEOUT_MS) {
             composeRule.onAllNodesWithTag(MainTestTags.EXPORT_PROJECT_BUTTON)
                 .fetchSemanticsNodes().isNotEmpty()
