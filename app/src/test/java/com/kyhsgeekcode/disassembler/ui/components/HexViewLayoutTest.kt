@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Test
 
 class HexViewLayoutTest {
     @Test
+    fun `buildHexPreview keeps short byte arrays unchanged`() {
+        val preview = buildHexPreview(byteArrayOf(0x01, 0x02, 0x03), maxBytes = 4)
+
+        assertEquals(byteArrayOf(0x01, 0x02, 0x03).toList(), preview.bytes.toList())
+        assertFalse(preview.isTruncated)
+    }
+
+    @Test
+    fun `buildHexPreview truncates long byte arrays`() {
+        val preview = buildHexPreview(ByteArray(6) { it.toByte() }, maxBytes = 4)
+
+        assertEquals(byteArrayOf(0x00, 0x01, 0x02, 0x03).toList(), preview.bytes.toList())
+        assertTrue(preview.isTruncated)
+        assertEquals(6, preview.originalSize)
+    }
+
+    @Test
     fun `buildHexRows splits bytes into 16-byte rows with offsets`() {
         val input = ByteArray(18) { it.toByte() }
 

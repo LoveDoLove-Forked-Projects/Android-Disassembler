@@ -28,6 +28,24 @@ internal const val BYTES_PER_ROW = 16
 private val OFFSET_WIDTH = 90.dp
 private val HEX_CELL_WIDTH = 25.dp
 private val ASCII_CELL_WIDTH = 12.dp
+internal const val MAX_RENDERED_HEX_BYTES = 256 * 1024
+
+data class HexPreview(
+    val bytes: ByteArray,
+    val originalSize: Int,
+    val isTruncated: Boolean
+)
+
+fun buildHexPreview(bytes: ByteArray, maxBytes: Int = MAX_RENDERED_HEX_BYTES): HexPreview {
+    if (bytes.size <= maxBytes) {
+        return HexPreview(bytes = bytes, originalSize = bytes.size, isTruncated = false)
+    }
+    return HexPreview(
+        bytes = bytes.copyOf(maxBytes),
+        originalSize = bytes.size,
+        isTruncated = true
+    )
+}
 
 data class HexRow(
     val offset: Int,
