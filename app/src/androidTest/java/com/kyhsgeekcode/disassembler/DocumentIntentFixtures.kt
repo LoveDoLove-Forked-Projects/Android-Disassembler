@@ -7,10 +7,16 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.test.core.app.ApplicationProvider
-import com.kyhsgeekcode.disassembler.project.ProjectManager
+import com.kyhsgeekcode.disassembler.project.models.ProjectModel
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceDescriptor
+import com.kyhsgeekcode.disassembler.project.models.ProjectSourceKind
 import com.kyhsgeekcode.disassembler.project.models.ProjectType
 import com.kyhsgeekcode.filechooser.NewFileChooserActivity
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 private const val FILE_PROVIDER_AUTHORITY = "com.kyhsgeekcode.disassembler.provider"
 
@@ -60,30 +66,30 @@ fun createAdvancedImportResultForFile(
 
 fun createProjectArchiveFixture(): File {
     val context = ApplicationProvider.getApplicationContext<Context>()
-    val sourceFile = context.filesDir.resolve("androidTest/archive-fixture/sample.bin")
-    sourceFile.parentFile?.mkdirs()
-    sourceFile.writeBytes("fixture-binary".encodeToByteArray())
-
-    val project = ProjectManager.newProject(
-        sourceFile,
-        ProjectType.UNKNOWN,
-        "ArchiveFixture",
-        true
-    )
     val archiveFile = context.cacheDir.resolve("androidTest/archive-fixture/ArchiveFixture.zip")
     archiveFile.parentFile?.mkdirs()
-    ProjectManager.exportArchive(project, archiveFile)
+    val projectModel = ProjectModel(
+        name = "ArchiveFixture",
+        generatedFolder = "baseFolder",
+        projectType = ProjectType.UNKNOWN,
+        sourceFilePath = "sourceFilePath",
+        sourceDescriptor = ProjectSourceDescriptor(
+            ProjectSourceKind.APP_PRIVATE_FILE,
+            "imports/ArchiveFixture.bin"
+        )
+    )
+    ZipOutputStream(archiveFile.outputStream()).use { zip ->
+        zip.putNextEntry(ZipEntry("project_info.json"))
+        zip.write(Json.encodeToString(projectModel).encodeToByteArray())
+        zip.closeEntry()
 
-    ProjectManager.currentProject = null
-    ProjectManager.projectModels.clear()
-    ProjectManager.projectModelToPath.clear()
-    ProjectManager.projectPaths.clear()
-    context.getSharedPreferences("ProjectManager", Context.MODE_PRIVATE)
-        .edit()
-        .clear()
-        .commit()
-    ProjectManager.rootdir.deleteRecursively()
-    ProjectManager.rootdir.mkdirs()
+        zip.putNextEntry(ZipEntry("sourceFilePath"))
+        zip.write("fixture-binary".encodeToByteArray())
+        zip.closeEntry()
+
+        zip.putNextEntry(ZipEntry("baseFolder/"))
+        zip.closeEntry()
+    }
 
     return archiveFile
 }

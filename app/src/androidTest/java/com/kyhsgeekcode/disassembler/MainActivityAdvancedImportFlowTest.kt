@@ -1,6 +1,5 @@
 package com.kyhsgeekcode.disassembler
 
-import android.app.Activity
 import android.content.ComponentName
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -21,6 +20,10 @@ import android.content.Context
 
 @RunWith(AndroidJUnit4::class)
 class MainActivityAdvancedImportFlowTest {
+    companion object {
+        private const val PROJECT_OPEN_TIMEOUT_MS = 15_000L
+    }
+
     private val projectCleanupRule = ProjectStateCleanupRule()
     private val preferenceRule = PowerUserModePreferenceRule(powerUserModeEnabled = true)
     private val intentsRule = InstrumentationIntentsRule()
@@ -56,12 +59,10 @@ class MainActivityAdvancedImportFlowTest {
 
         composeRule.onNodeWithTag(MainTestTags.IMPORT_ADVANCED_BUTTON).performClick()
 
-        composeRule.waitUntil(timeoutMillis = 5_000) {
+        composeRule.waitUntil(timeoutMillis = PROJECT_OPEN_TIMEOUT_MS) {
             composeRule.onAllNodesWithTag(MainTestTags.EXPORT_PROJECT_BUTTON)
                 .fetchSemanticsNodes().isNotEmpty()
         }
-
-        composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).assertExists()
     }
 
     @Test
@@ -85,11 +86,9 @@ class MainActivityAdvancedImportFlowTest {
 
         composeRule.onNodeWithTag(MainTestTags.IMPORT_ADVANCED_BUTTON).performClick()
 
-        composeRule.waitUntil(timeoutMillis = 5_000) {
+        composeRule.waitUntil(timeoutMillis = PROJECT_OPEN_TIMEOUT_MS) {
             composeRule.onAllNodesWithTag(MainTestTags.EXPORT_PROJECT_BUTTON)
                 .fetchSemanticsNodes().isNotEmpty()
         }
-
-        composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).assertExists()
     }
 }

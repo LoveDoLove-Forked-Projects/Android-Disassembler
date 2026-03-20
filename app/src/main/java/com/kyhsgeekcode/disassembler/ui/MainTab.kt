@@ -40,7 +40,9 @@ import com.kyhsgeekcode.disassembler.importing.legacyPermissionsForImportEntryPo
 import com.kyhsgeekcode.disassembler.preference.PowerUserModeSettings
 import com.kyhsgeekcode.disassembler.viewmodel.MainViewModel
 import com.kyhsgeekcode.filechooser.NewFileChooserActivity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ProjectOverview(viewModel: MainViewModel) {
@@ -101,7 +103,9 @@ fun ProjectOverview(viewModel: MainViewModel) {
                 } else {
                     context.getString(R.string.fail_exportzip)
                 }
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                withContext(Dispatchers.Main.immediate) {
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

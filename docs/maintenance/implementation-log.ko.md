@@ -87,6 +87,7 @@
 | archive detection 회귀 테스트 | 통과 | 지원 확장자는 fast path로 archive로 인식하고, ZIP/APK/JAR/AAR 경로는 구형 Android에서도 Commons Compress 탐지 크래시 없이 처리하는 기반을 고정 |
 | project-relative path null-safe helper 테스트 | 통과 | project 경계 밖 경로는 예외 대신 `null`을 반환하고, UI 호출부가 이를 흡수할 수 있는 계약을 고정 |
 | 강화된 instrumentation APK 컴파일 | 통과 | SAF import, advanced import, project archive reopen, export flow instrumentation 테스트가 `assembleDebugAndroidTest`까지 묶이는지 확인 |
+| CI instrumentation 회귀 수정 | 통과 | project archive reopen fixture를 경량 ZIP으로 고정하고 export 완료 Toast를 main thread로 이동해 GitHub Actions emulator 실패 원인을 제거 |
 | workflow YAML 파싱 | 통과 | `.github/workflows/ci.yml`, `.github/workflows/release.yml` 모두 Ruby YAML 파서 기준 확인 |
 
 ## 다음 웨이브 후보
