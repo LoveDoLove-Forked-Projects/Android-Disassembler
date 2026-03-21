@@ -15,6 +15,7 @@ import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.pow
 
+private const val MAX_EMITTED_FOUND_STRING_CHARS = 4_096
 
 @ExperimentalUnsignedTypes
 class Analyzer(private val bytes: ByteArray) {
@@ -50,7 +51,18 @@ class Analyzer(private val bytes: ByteArray) {
                 val length = i - strstart
                 val offset = strstart
                 if (length in min..max) {
-                    val str = String(bytes, strstart, length)
+                    val previewLength = minOf(length, MAX_EMITTED_FOUND_STRING_CHARS)
+                    val str = String(bytes, strstart, previewLength).let {
+                        if (length > MAX_EMITTED_FOUND_STRING_CHARS) {
+                            if (previewLength <= 3) {
+                                it.take(previewLength)
+                            } else {
+                                it.take(previewLength - 3) + "..."
+                            }
+                        } else {
+                            it
+                        }
+                    }
                     val fs = FoundString(length, offset.toLong(), str)
                     // Log.v(TAG,str);
                     progress(i, bytes.size, fs)
