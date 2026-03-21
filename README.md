@@ -11,10 +11,10 @@ Analyze malicious app on your phone
 
 ## Maintenance status
 
-This repository is under active maintenance again.
+Maintenance has resumed, but the project is still in a recovery and modernization phase.
 
 - The baseline now expects initialized git submodules before building.
-- Default file open/import/export flows now use SAF-first contracts on modern Android.
+- Default open/import/export flows now use SAF-first contracts on modern Android.
 - `Advanced import` is a separate power-user path for root, raw filesystem, and installed-app browsing.
 - `QUERY_ALL_PACKAGES` is kept for the power-user installed-app source, not for the default SAF flow.
 - Issue triage and maintenance docs live under `docs/maintenance/`.
@@ -24,7 +24,7 @@ This repository is under active maintenance again.
 - `Select file` uses Android's SAF document picker.
 - `Export project` and `Save Details to file` use SAF document creation flows.
 - `Advanced import` is opt-in and intended for power users who need raw filesystem, root, or installed-app entry points.
-- Installed-app browsing is treated as a power-user feature, so package visibility stays isolated from the default import path.
+- Installed-app browsing is treated as a power-user feature, so package visibility stays isolated from the default SAF flow.
 
 ## Preview builds
 
