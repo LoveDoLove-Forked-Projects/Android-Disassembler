@@ -1,6 +1,6 @@
 # 백로그 분류표
 
-이 문서는 2026-03-21 기준으로 열려 있는 GitHub 이슈 30개를 유지보수 재가동 관점에서 다시 묶은 결과다.  
+이 문서는 2026-03-21 기준으로 열려 있는 GitHub 이슈 28개를 유지보수 재가동 관점에서 다시 묶은 결과다.  
 상태 이름은 `docs/maintenance/issue-triage.md`의 공통 분류를 따른다.
 
 ## 요약
@@ -8,7 +8,7 @@
 | 항목 | 수량 | 판단 |
 | --- | --- | --- |
 | 오픈 PR | 0 | 유지보수 기준선 PR `#728`은 이미 `master`에 병합되었다 |
-| 오픈 이슈 | 30 | 표면상 30개지만, 실제 활성 작업 묶음은 대략 10개 안팎이고 일부는 `future-scope`로만 추적한다 |
+| 오픈 이슈 | 28 | 표면상 28개지만, 실제 활성 작업 묶음은 대략 10개 안팎이고 일부는 `future-scope`로만 추적한다 |
 | 즉시 닫기/대체 가능 후보 | 완료 | `#728`로 직접 커버된 이슈 8건은 병합 직후 정리했다 |
 | 즉시 구현 후보 | 소수 | 릴리스 운영, storage 정책 마감, large-file / `.so` 재현 클러스터가 우선이다 |
 
@@ -17,6 +17,7 @@
 | 항목 | 처리 | 이유 |
 | --- | --- | --- |
 | PR `#728` | 병합 | 유지보수 기준선, SAF 전환, release/preview workflow, instrumentation merge gate, 여러 crash/UX 완화를 `master`에 반영 |
+| PR `#729` | 병합 | incoming `ACTION_VIEW`/`EXTRA_STREAM` `content://` 경계와 외부 공유 project ZIP reopen 경계를 CI instrumentation으로 고정 |
 | PR `#723`, `#724`, `#725`, `#726`, `#727` | 닫음 | `#728`에 흡수되었거나 현재 release/preview workflow로 대체됨 |
 | PR `#704`, `#701`, `#699`, `#695`, `#693`, `#692`, `#677`, `#637`, `#615`, `#565` | 닫음 | 오래된 자동 bump/alpha 제안으로 현재 유지보수 기준선보다 뒤처짐 |
 | 이슈 `#112` | 닫음 | SWF 요청은 `#721`로 통합 |
@@ -26,6 +27,7 @@
 | 이슈 `#438` | 닫음 | chooser 정렬이 empty label을 안전하게 처리하도록 이미 maintenance 브랜치에서 수정됨 |
 | 이슈 `#672` | 닫음 | crash stack이 가리키던 `ProjectOverviewFragment` binding 경로는 현재 Compose 기반 overview 화면으로 대체되어 더 이상 활성 코드 경로가 아님 |
 | 이슈 `#720`, `#670`, `#396`, `#348`, `#160`, `#159`, `#129`, `#123` | 닫음 | `#728`에 포함된 변경이 `master`에 병합되어 post-merge 정리 완료 |
+| 이슈 `#95` | 닫음 | `#728`과 `#729`가 기본 SAF import/export/open 경로, incoming `content://` 공유 경계, project archive reopen 경계까지 `master`에 반영 |
 | 이슈 `#162`, `#529`, `#706`, `#491` | reopen + `future-scope` | 지금 당장 하지는 않지만 나중에 다시 볼 수 있는 장기 기능 요청으로 분리 추적 |
 | 이슈 `#717`, `#710`, `#582`, `#158` | reopen + `future-scope` | 현재 baseline 유지보수 범위는 아니지만 장기 검토 대상으로는 남겨둠 |
 
@@ -33,8 +35,6 @@
 
 | 작업 묶음 | 관련 이슈 | 제안 상태 | 판단 | 다음 액션 |
 | --- | --- | --- | --- | --- |
-| 최신 Android storage 정책 | `#95` | `planned-fast-follow` | 핵심 유지보수 항목이며 이미 SAF 전환, incoming `ACTION_VIEW`/`EXTRA_STREAM` instrumentation 회귀 검증, 외부 공유 project ZIP의 reopen 경계까지 보강했다 | 앱 전체 import/open 경로를 SAF 중심으로 계속 이관하고 남은 실기기 경계를 확인 |
-| 릴리스 산출물 부재 | `#719` | `planned-fast-follow` | 코드 문제보다 릴리스 파이프라인 문제다 | CI artifact, preview prerelease, formal release 흐름으로 운영 정리 |
 | 대용량/메모리/RecyclerView 크래시 | `#219`, `#235`, `#442`, `#523` | `planned-fast-follow` | `#728`에서 큰 파일 byte cache 제한과 문자열 검색 결과 상한/stable key를 먼저 넣었다 | `#728` 병합 후 실제 150MB 파일과 긴 문자열 리스트로 재검증하고 나머지 OOM 경로를 분리 |
 | `.so`/ELF/autosetup | `#514`, `#543`, `#576`, `#137` | `planned-fast-follow` | `#728`에서 64-bit ELF machine type 매핑과 override autosetup 재적용 경로를 먼저 수정했다 | 실제 `.so` 샘플로 재검증하고 남는 parser 문제만 분리 |
 | 구형 Android archive 감지 크래시 | `#507`, `#508` | `planned-fast-follow` | `#728`에서 archive 확장자 fast path와 `NoClassDefFoundError` 방어를 넣어 구형 Android의 Commons Compress 감지 크래시 경로를 우회했다 | Android 6~7 계열에서 archive chooser와 open 경로를 재확인하고 정리 |
@@ -51,10 +51,10 @@
 
 | 우선순위 | 항목 | 근거 |
 | --- | --- | --- |
-| 1 | `#719` preview/release 운영 정리 | 최신 빌드를 배포할 수 있어야 이슈 종료도 설득력이 생긴다 |
-| 2 | `#95` storage 정책 마감 | 최신 Android 대응의 핵심이다 |
-| 3 | large-file / `.so` 재현 클러스터 정리 | 오래된 crash report와 parser 관련 이슈를 실질 작업 묶음으로 줄일 수 있다 |
-| 4 | 포맷 확장 요청 재정렬 | 실제 유지보수 범위와 별도 연구 과제를 나눠야 한다 |
+| 1 | large-file / `.so` 재현 클러스터 정리 | 오래된 crash report와 parser 관련 이슈를 실질 작업 묶음으로 줄일 수 있다 |
+| 2 | 구형 Android archive / stale project 재확인 | 이미 완화한 경계를 실제 종료 가능한 상태로 정리해야 한다 |
+| 3 | 포맷 확장 요청 재정렬 | 실제 유지보수 범위와 별도 연구 과제를 나눠야 한다 |
+| 4 | power-user 기능 문서화 유지 | 기본 SAF 경로와 고급 권한 경로가 다시 섞이지 않도록 README와 설정 설명을 계속 일관되게 유지해야 한다 |
 
 ## 닫기 전 체크 규칙
 

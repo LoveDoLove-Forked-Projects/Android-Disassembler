@@ -57,11 +57,11 @@
     <string name="advanced_import">Advanced import</string>
     <string name="power_user_features">Power-user features</string>
     <string name="power_user_import_title">Enable power-user import options</string>
-    <string name="power_user_import_summary">Show advanced non-SAF import entry points such as root and direct filesystem browsing.</string>
+    <string name="power_user_import_summary">Keep standard imports on SAF. Enable Advanced import only for root, direct filesystem, and other non-SAF entry points.</string>
     <string name="power_user_filesystem_import_title">Enable filesystem sources</string>
-    <string name="power_user_filesystem_import_summary">Show root, storage, and process-oriented filesystem entry points in Advanced import.</string>
+    <string name="power_user_filesystem_import_summary">Show root, storage, and process-oriented raw filesystem entry points in Advanced import.</string>
     <string name="power_user_apps_import_title">Enable installed apps source</string>
-    <string name="power_user_apps_import_summary">Show installed application packages in Advanced import.</string>
+    <string name="power_user_apps_import_summary">Show installed application packages in Advanced import. This power-user path relies on app visibility to browse installed packages.</string>
     <string name="power_user_research_tools_import_title">Enable research tools</string>
     <string name="power_user_research_tools_import_summary">Show malware zoo and hash lookup tools in Advanced import.</string>
     <string name="architecture">Architecture:</string>
