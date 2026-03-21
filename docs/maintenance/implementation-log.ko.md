@@ -72,6 +72,7 @@
 | `MainActivity` intent 재처리 가드 테스트 | 통과 | 첫 생성에서는 처리, 회전 재생성에서는 건너뛰는 규칙을 고정 |
 | `assembleDebugAndroidTest` | 통과 | AndroidX runner와 smoke test가 컴파일되는지 확인 |
 | 강화된 `assembleDebugAndroidTest` | 통과 | Compose UI 기반 PR 회귀 테스트 세트가 instrumentation APK로 묶이는지 확인 |
+| 추가 instrumentation 사용 시나리오 컴파일 | 통과 | SAF import 후 recreate, advanced import `copy=no`, `EXTRA_STREAM` recreate, export cancel 유지 경계를 androidTest에 추가 |
 | large-file cache policy 테스트 | 통과 | 큰 파일은 메모리 캐시에 남기지 않는 규칙을 고정 |
 | string search accumulator 테스트 | 통과 | 문자열 결과 상한과 truncation 동작을 고정 |
 | binary detail preview 테스트 | 통과 | 긴 detail 문자열은 preview만 렌더링하고 notice를 붙이는 규칙을 고정 |

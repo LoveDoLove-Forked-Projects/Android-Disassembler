@@ -68,6 +68,37 @@ class MainActivityAdvancedImportFlowTest {
     }
 
     @Test
+    fun advancedImportResult_copyNo_opensProjectAndSurvivesRecreate() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val importedFile = context.filesDir.resolve("androidTest/advanced/sample-no-copy.so")
+        importedFile.parentFile?.mkdirs()
+        importedFile.writeBytes("so-data".encodeToByteArray())
+
+        intending(
+            hasComponent(
+                ComponentName(
+                    composeRule.activity,
+                    NewFileChooserActivity::class.java
+                )
+            )
+        ).respondWith(
+            createAdvancedImportResultForFile(
+                file = importedFile,
+                openProject = false,
+                projectType = ProjectType.UNKNOWN
+            )
+        )
+
+        composeRule.onNodeWithTag(MainTestTags.IMPORT_ADVANCED_BUTTON).performClick()
+        composeRule.onNodeWithTag(MainTestTags.COPY_DIALOG_NO_BUTTON).performClick()
+
+        waitForProjectOpen()
+        composeRule.activityRule.scenario.recreate()
+        waitForProjectOpen()
+        composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).assertExists()
+    }
+
+    @Test
     fun advancedImportOpenProjectResult_importsProjectArchive() {
         val archiveFile = createProjectArchiveFixture()
 
@@ -88,6 +119,13 @@ class MainActivityAdvancedImportFlowTest {
 
         composeRule.onNodeWithTag(MainTestTags.IMPORT_ADVANCED_BUTTON).performClick()
 
+        composeRule.waitUntil(timeoutMillis = PROJECT_OPEN_TIMEOUT_MS) {
+            composeRule.onAllNodesWithTag(MainTestTags.EXPORT_PROJECT_BUTTON)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun waitForProjectOpen() {
         composeRule.waitUntil(timeoutMillis = PROJECT_OPEN_TIMEOUT_MS) {
             composeRule.onAllNodesWithTag(MainTestTags.EXPORT_PROJECT_BUTTON)
                 .fetchSemanticsNodes().isNotEmpty()
