@@ -80,6 +80,7 @@
 | text preview 테스트 | 통과 | Text 탭이 큰 파일 바이트 배열을 preview 상한으로 잘라 highlight하는 규칙을 고정 |
 | project workspace reset 테스트 | 통과 | 새 프로젝트를 열면 열린 탭과 현재 탭 인덱스를 `Overview` 하나로 리셋하는 규칙을 고정 |
 | project data cache clear 테스트 | 통과 | 프로젝트 전환 시 전역 파일 content cache를 비우는 규칙을 고정 |
+| dead legacy string/binary layouts 제거 | 통과 | `RecyclerView`/fragment 기반 obsolete UI 리소스를 지워 `#442` stack trace 경로를 코드베이스에서 완전히 제거 |
 | import destination 파일명 테스트 | 통과 | 같은 display name으로 여러 번 import해도 app-private 파일이 덮어써지지 않는 규칙을 고정 |
 | imported project relocation 테스트 | 통과 | project archive import 후 `sourceFilePath`, `generatedFolder`, `project_info.json` 경로를 새 프로젝트 위치로 다시 맞추는 규칙을 고정 |
 | project open action 테스트 | 통과 | `Open as project`가 기존 project 디렉터리와 exported project ZIP에 대해 올바른 reopen/import 동작을 고르는 규칙을 고정 |
