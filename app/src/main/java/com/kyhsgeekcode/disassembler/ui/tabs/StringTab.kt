@@ -29,6 +29,43 @@ import timber.log.Timber
 private const val MAX_RENDERED_STRING_RESULTS = 5_000
 private const val MAX_RENDERED_STRING_CHARS = 4_096
 private const val MAX_RENDERED_STRING_TOTAL_CHARS = 32_768
+internal const val MAX_SEARCHED_STRING_BYTES = 4 * 1024 * 1024
+
+data class StringSearchInput(
+    val bytes: ByteArray,
+    val originalSize: Long,
+    val isTruncated: Boolean
+)
+
+internal fun buildStringSearchInput(
+    previewBytes: ByteArray,
+    originalSize: Long,
+    maxBytes: Int = MAX_SEARCHED_STRING_BYTES
+): StringSearchInput {
+    return StringSearchInput(
+        bytes = previewBytes,
+        originalSize = originalSize,
+        isTruncated = originalSize > maxBytes
+    )
+}
+
+internal fun buildStringSearchNotice(
+    input: StringSearchInput,
+    resultsTruncated: Boolean
+): String? {
+    val parts = mutableListOf<String>()
+    if (input.isTruncated) {
+        parts += "Searching strings in first ${input.bytes.size} bytes of ${input.originalSize} bytes"
+    }
+    if (resultsTruncated) {
+        parts += "Showing first $MAX_RENDERED_STRING_RESULTS results."
+    }
+    return when {
+        parts.isEmpty() -> null
+        parts.size == 1 -> parts.single()
+        else -> parts.joinToString(". ")
+    }
+}
 
 internal fun clipFoundStringForRendering(
     result: FoundString,
@@ -88,11 +125,20 @@ class StringTabData(val data: TabKind.FoundString) : PreparedTabData() {
     val isDone = _isDone as StateFlow<Boolean>
     private val _isTruncated = MutableStateFlow(false)
     val isTruncated = _isTruncated as StateFlow<Boolean>
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice = _notice as StateFlow<String?>
     lateinit var analyzer: Analyzer
     override suspend fun prepare() {
-        val bytes = ProjectDataStorage.getFileContent(data.relPath)
+        val fileSize = ProjectDataStorage.resolveToRead(data.relPath)?.length() ?: 0L
+        val input = buildStringSearchInput(
+            previewBytes = ProjectDataStorage.getFileContentPreview(
+                data.relPath,
+                MAX_SEARCHED_STRING_BYTES
+            ),
+            originalSize = fileSize
+        )
         Timber.d("Given relPath: ${data.relPath}")
-        analyzer = Analyzer(bytes)
+        analyzer = Analyzer(input.bytes)
         val accumulator = StringSearchResultAccumulator(MAX_RENDERED_STRING_RESULTS)
         analyzer.searchStrings(data.range.first, data.range.last) { p, t, fs ->
             fs?.let {
@@ -103,6 +149,7 @@ class StringTabData(val data: TabKind.FoundString) : PreparedTabData() {
             }
             if (p == t) { // done
                 _isTruncated.value = accumulator.isTruncated
+                _notice.value = buildStringSearchNotice(input, accumulator.isTruncated)
                 _isDone.value = true
             }
         }
@@ -116,15 +163,13 @@ fun StringTab(data: TabData, viewModel: MainViewModel) {
     val preparedTabData: StringTabData = viewModel.getTabData(data)
     val strings = preparedTabData.strings
     val isDone = preparedTabData.isDone.collectAsState()
-    val isTruncated = preparedTabData.isTruncated.collectAsState()
+    val notice = preparedTabData.notice.collectAsState()
     Column {
         Row {
             if (!isDone.value) {
                 Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Searching...")
             }
-            if (isTruncated.value) {
-                Text("Showing first $MAX_RENDERED_STRING_RESULTS results")
-            }
+            notice.value?.let { Text(it) }
         }
         TableView(
             titles = listOf("Offset" to 100.dp, "Length" to 50.dp, "String" to 800.dp),
