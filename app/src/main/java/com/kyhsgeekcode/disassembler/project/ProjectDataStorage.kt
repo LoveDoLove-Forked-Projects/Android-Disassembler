@@ -146,6 +146,10 @@ object ProjectDataStorage {
         val key = Pair(keykey, DataType.FileContent)
         data[key] = datadata
     }
+
+    fun clear() {
+        data.clear()
+    }
 }
 
 internal const val MAX_CACHED_FILE_CONTENT_BYTES = 8L * 1024 * 1024

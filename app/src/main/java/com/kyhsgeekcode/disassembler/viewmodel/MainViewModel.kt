@@ -48,6 +48,27 @@ import kotlin.collections.HashMap
 import kotlin.math.max
 import kotlin.math.min
 
+internal data class OpenedProjectWorkspaceState(
+    val openedTabs: List<TabData>,
+    val currentTabIndex: Int
+)
+
+internal fun openedProjectWorkspaceState(
+    previousTabs: List<TabData>,
+    previousCurrentTabIndex: Int
+): OpenedProjectWorkspaceState {
+    val defaultTabs = listOf(TabData("Overview", TabKind.ProjectOverview))
+    if (previousCurrentTabIndex == 0 && previousTabs == defaultTabs) {
+        return OpenedProjectWorkspaceState(
+            openedTabs = previousTabs,
+            currentTabIndex = previousCurrentTabIndex
+        )
+    }
+    return OpenedProjectWorkspaceState(
+        openedTabs = defaultTabs,
+        currentTabIndex = 0
+    )
+}
 
 sealed class ShowSearchForStringsDialog {
     object NotShown : ShowSearchForStringsDialog()
@@ -161,8 +182,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val project = withContext(Dispatchers.IO) {
                     ProjectManager.openProject(projectInfoFile.absolutePath)
                 }
-                _selectedFilePath.value = project.sourceFilePath
-                _currentProject.value = project
+                applyOpenedProject(project)
             } catch (e: Exception) {
                 eventChannel.send(Event.AlertError("Failed to open project"))
             }
@@ -177,8 +197,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val project = withContext(Dispatchers.IO) {
                     ProjectManager.import(archiveFile)
                 }
-                _selectedFilePath.value = project.sourceFilePath
-                _currentProject.value = project
+                applyOpenedProject(project)
             } catch (e: Exception) {
                 eventChannel.send(Event.AlertError("Failed to import project"))
             }
@@ -214,8 +233,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                         is ImportedUriAction.ImportProjectArchive -> ProjectManager.import(action.archiveFile)
                     }
-                    _selectedFilePath.value = project.sourceFilePath
-                    _currentProject.value = project
+                    applyOpenedProject(project)
                 }
             } catch (e: Exception) {
                 viewModelScope.launch {
@@ -234,8 +252,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val project = withContext(Dispatchers.IO) {
                     onClickCopyDialog(copy)
                 }
-                _selectedFilePath.value = project.sourceFilePath
-                _currentProject.value = project
+                applyOpenedProject(project)
             } catch (e: Exception) {
                 eventChannel.send(Event.AlertError("Failed to create project"))
             }
@@ -395,6 +412,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun newCaptionFromCurrent(with: String): String {
         return openedTabs.value[currentTabIndex.value].title.replaceAfter("as ", with)
+    }
+
+    private fun applyOpenedProject(project: ProjectModel) {
+        val workspaceState = openedProjectWorkspaceState(
+            previousTabs = _openedTabs.value,
+            previousCurrentTabIndex = _currentTabIndex.value
+        )
+        ProjectDataStorage.clear()
+        tabDataMap.clear()
+        _openedTabs.value = workspaceState.openedTabs
+        _currentTabIndex.value = workspaceState.currentTabIndex
+        _showSearchForStrings.value = ShowSearchForStringsDialog.NotShown
+        _selectedFilePath.value = project.sourceFilePath
+        _currentProject.value = project
     }
 
     private fun openNewTab(tabData: TabData) {

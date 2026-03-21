@@ -37,4 +37,13 @@ class ProjectDataStorageCachePolicyTest {
 
         assertContentEquals(byteArrayOf(1, 2, 3, 4), readPreviewBytes(file, maxBytes = 4))
     }
+
+    @Test
+    fun `clear removes cached file content`() {
+        ProjectDataStorage.data["sample" to DataType.FileContent] = byteArrayOf(1, 2, 3)
+
+        ProjectDataStorage.clear()
+
+        assertTrue(ProjectDataStorage.data.isEmpty())
+    }
 }
