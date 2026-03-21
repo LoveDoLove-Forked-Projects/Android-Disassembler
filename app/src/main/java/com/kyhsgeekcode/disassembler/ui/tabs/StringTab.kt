@@ -27,6 +27,27 @@ import kotlinx.coroutines.flow.StateFlow
 import timber.log.Timber
 
 private const val MAX_RENDERED_STRING_RESULTS = 5_000
+private const val MAX_RENDERED_STRING_CHARS = 4_096
+private const val MAX_RENDERED_STRING_TOTAL_CHARS = 32_768
+
+internal fun clipFoundStringForRendering(
+    result: FoundString,
+    maxChars: Int = MAX_RENDERED_STRING_CHARS
+): Pair<FoundString, Boolean> {
+    require(maxChars >= 0) { "maxChars must be non-negative" }
+    if (result.string.length <= maxChars) {
+        return result to false
+    }
+    if (maxChars == 0) {
+        return result.copy(string = "") to true
+    }
+    val clippedString = if (maxChars <= 3) {
+        result.string.take(maxChars)
+    } else {
+        result.string.take(maxChars - 3) + "..."
+    }
+    return result.copy(string = clippedString) to true
+}
 
 class StringSearchResultAccumulator(private val maxResults: Int) {
     private val _results = mutableListOf<FoundString>()
@@ -36,12 +57,27 @@ class StringSearchResultAccumulator(private val maxResults: Int) {
     var isTruncated: Boolean = false
         private set
 
+    private var renderedChars: Int = 0
+
     fun append(result: FoundString) {
         if (_results.size >= maxResults) {
             isTruncated = true
             return
         }
-        _results.add(result)
+        val remainingChars = MAX_RENDERED_STRING_TOTAL_CHARS - renderedChars
+        if (remainingChars <= 0) {
+            isTruncated = true
+            return
+        }
+        val (displayResult, wasClipped) = clipFoundStringForRendering(
+            result,
+            minOf(MAX_RENDERED_STRING_CHARS, remainingChars)
+        )
+        if (wasClipped) {
+            isTruncated = true
+        }
+        _results.add(displayResult)
+        renderedChars += displayResult.string.length
     }
 }
 
@@ -61,8 +97,8 @@ class StringTabData(val data: TabKind.FoundString) : PreparedTabData() {
         analyzer.searchStrings(data.range.first, data.range.last) { p, t, fs ->
             fs?.let {
                 accumulator.append(it)
-                if (!accumulator.isTruncated) {
-                    strings.add(it)
+                if (strings.size < accumulator.results.size) {
+                    strings.add(accumulator.results.last())
                 }
             }
             if (p == t) { // done
