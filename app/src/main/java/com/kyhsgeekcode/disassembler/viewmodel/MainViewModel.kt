@@ -48,10 +48,31 @@ import kotlin.collections.HashMap
 import kotlin.math.max
 import kotlin.math.min
 
+internal data class OpenedProjectWorkspaceState(
+    val openedTabs: List<TabData>,
+    val currentTabIndex: Int
+)
+
+internal fun openedProjectWorkspaceState(
+    previousTabs: List<TabData>,
+    previousCurrentTabIndex: Int
+): OpenedProjectWorkspaceState {
+    val defaultTabs = listOf(TabData("Overview", TabKind.ProjectOverview))
+    if (previousCurrentTabIndex == 0 && previousTabs == defaultTabs) {
+        return OpenedProjectWorkspaceState(
+            openedTabs = previousTabs,
+            currentTabIndex = previousCurrentTabIndex
+        )
+    }
+    return OpenedProjectWorkspaceState(
+        openedTabs = defaultTabs,
+        currentTabIndex = 0
+    )
+}
 
 sealed class ShowSearchForStringsDialog {
     object NotShown : ShowSearchForStringsDialog()
-    object Shown : ShowSearchForStringsDialog()
+    data class Shown(val notice: String?) : ShowSearchForStringsDialog()
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -119,36 +140,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onSelectIntent(intent: Intent) {
         Timber.d("onActivityResultOk")
-        _openAsProject.value = intent.getBooleanExtra("openProject", false)
-        val selectedFilePayload = selectedFileIntentPayload(intent)
-        if (selectedFilePayload != null) {
-            onSelectFilePayload(selectedFilePayload)
-            return
-        }
-        val fi = intent.serializableExtraCompat<FileItem>("fileItem")
-        if (fi != null) {
-            onSelectFileItem(fi)
-        } else {
-            val displayName = intent.getStringExtra("displayName")
-            val uri = intent.parcelableExtraCompat<Uri>("uri")
-                ?: intent.extras.parcelableExtraCompat(Intent.EXTRA_STREAM)
-                ?: return
-            onSelectUri(uri, displayName)
-        }
-    }
+        when (val selection = resolveIncomingSelection(intent)) {
+            is IncomingSelection.CompactFile -> {
+                _openAsProject.value = selection.openAsProject
+                onSelectFilePayload(selection.payload)
+            }
 
-    private fun onSelectFileItem(fileItem: FileItem) {
-        val file = fileItem.file ?: run {
-            Logger.e(TAG, "Failed to load fileItem: $fileItem")
-            return@onSelectFileItem
+            is IncomingSelection.UriSelection -> {
+                _openAsProject.value = selection.openAsProject
+                onSelectUri(selection.uri, selection.displayName)
+            }
+
+            null -> return
         }
-        onSelectFilePayload(
-            SelectedFileIntentPayload(
-                filePath = file.absolutePath,
-                nativeFilePath = (fileItem as? FileItemApp)?.nativeFile?.absolutePath,
-                projectType = fileItemTypeToProjectType(fileItem)
-            )
-        )
     }
 
     private fun onSelectFilePayload(payload: SelectedFileIntentPayload) {
@@ -178,8 +182,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val project = withContext(Dispatchers.IO) {
                     ProjectManager.openProject(projectInfoFile.absolutePath)
                 }
-                _selectedFilePath.value = project.sourceFilePath
-                _currentProject.value = project
+                applyOpenedProject(project)
             } catch (e: Exception) {
                 eventChannel.send(Event.AlertError("Failed to open project"))
             }
@@ -194,8 +197,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val project = withContext(Dispatchers.IO) {
                     ProjectManager.import(archiveFile)
                 }
-                _selectedFilePath.value = project.sourceFilePath
-                _currentProject.value = project
+                applyOpenedProject(project)
             } catch (e: Exception) {
                 eventChannel.send(Event.AlertError("Failed to import project"))
             }
@@ -231,8 +233,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                         is ImportedUriAction.ImportProjectArchive -> ProjectManager.import(action.archiveFile)
                     }
-                    _selectedFilePath.value = project.sourceFilePath
-                    _currentProject.value = project
+                    applyOpenedProject(project)
                 }
             } catch (e: Exception) {
                 viewModelScope.launch {
@@ -251,8 +252,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val project = withContext(Dispatchers.IO) {
                     onClickCopyDialog(copy)
                 }
-                _selectedFilePath.value = project.sourceFilePath
-                _currentProject.value = project
+                applyOpenedProject(project)
             } catch (e: Exception) {
                 eventChannel.send(Event.AlertError("Failed to create project"))
             }
@@ -359,7 +359,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun searchForStrings() {
         Timber.d("Will be shown strings dialog")
-        _showSearchForStrings.value = ShowSearchForStringsDialog.Shown
+        val notice = getCurrentRelPath()
+            ?.let { ProjectDataStorage.resolveToRead(it)?.length() }
+            ?.let { buildStringSearchDialogNotice(it) }
+        _showSearchForStrings.value = ShowSearchForStringsDialog.Shown(notice)
     }
 
     fun analyze() {
@@ -412,6 +415,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun newCaptionFromCurrent(with: String): String {
         return openedTabs.value[currentTabIndex.value].title.replaceAfter("as ", with)
+    }
+
+    private fun applyOpenedProject(project: ProjectModel) {
+        val workspaceState = openedProjectWorkspaceState(
+            previousTabs = _openedTabs.value,
+            previousCurrentTabIndex = _currentTabIndex.value
+        )
+        ProjectDataStorage.clear()
+        tabDataMap.clear()
+        _openedTabs.value = workspaceState.openedTabs
+        _currentTabIndex.value = workspaceState.currentTabIndex
+        _showSearchForStrings.value = ShowSearchForStringsDialog.NotShown
+        _selectedFilePath.value = project.sourceFilePath
+        _currentProject.value = project
     }
 
     private fun openNewTab(tabData: TabData) {
@@ -515,20 +532,61 @@ private inline fun <reified T : Parcelable> Bundle?.parcelableExtraCompat(key: S
     }
 }
 
-private inline fun <reified T : java.io.Serializable> Intent.serializableExtraCompat(key: String): T? {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        getSerializableExtra(key, T::class.java)
-    } else {
-        @Suppress("DEPRECATION")
-        getSerializableExtra(key) as? T
-    }
-}
-
 internal data class SelectedFileIntentPayload(
     val filePath: String,
     val nativeFilePath: String?,
     val projectType: String
 )
+
+internal sealed class IncomingSelection {
+    data class CompactFile(
+        val payload: SelectedFileIntentPayload,
+        val openAsProject: Boolean
+    ) : IncomingSelection()
+
+    data class UriSelection(
+        val uri: Uri,
+        val displayName: String?,
+        val openAsProject: Boolean
+    ) : IncomingSelection()
+}
+
+internal fun resolveIncomingSelection(intent: Intent): IncomingSelection? {
+    return resolveIncomingSelection(
+        openAsProject = intent.getBooleanExtra("openProject", false),
+        filePath = intent.getStringExtra(NewFileChooserActivity.EXTRA_FILE_PATH),
+        nativeFilePath = intent.getStringExtra(NewFileChooserActivity.EXTRA_NATIVE_FILE_PATH),
+        projectType = intent.getStringExtra(NewFileChooserActivity.EXTRA_PROJECT_TYPE),
+        uri = intent.parcelableExtraCompat("uri"),
+        extraStreamUri = intent.extras.parcelableExtraCompat(Intent.EXTRA_STREAM),
+        displayName = intent.getStringExtra("displayName")
+    )
+}
+
+internal fun resolveIncomingSelection(
+    openAsProject: Boolean,
+    filePath: String?,
+    nativeFilePath: String?,
+    projectType: String?,
+    uri: Uri?,
+    extraStreamUri: Uri?,
+    displayName: String?
+): IncomingSelection? {
+    val selectedFilePayload = selectedFileIntentPayload(
+        filePath = filePath,
+        nativeFilePath = nativeFilePath,
+        projectType = projectType
+    )
+    if (selectedFilePayload != null) {
+        return IncomingSelection.CompactFile(selectedFilePayload, openAsProject)
+    }
+    val incomingUri = uri ?: extraStreamUri ?: return null
+    return IncomingSelection.UriSelection(
+        uri = incomingUri,
+        displayName = displayName,
+        openAsProject = openAsProject
+    )
+}
 
 internal fun selectedFileIntentPayload(intent: Intent): SelectedFileIntentPayload? {
     return selectedFileIntentPayload(

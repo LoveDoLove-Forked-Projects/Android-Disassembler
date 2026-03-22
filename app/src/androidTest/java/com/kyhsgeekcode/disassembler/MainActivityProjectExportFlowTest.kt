@@ -63,4 +63,37 @@ class MainActivityProjectExportFlowTest {
         assertTrue(outputFile.readBytes().size > 4)
         assertTrue(outputFile.readText(Charsets.ISO_8859_1).startsWith("PK"))
     }
+
+    @Test
+    fun exportProjectCancel_keepsProjectOpen() {
+        intending(
+            allOf(
+                hasAction(Intent.ACTION_OPEN_DOCUMENT)
+            )
+        ).respondWith(
+            createOpenDocumentResult(
+                displayName = "export-cancel-source.apk",
+                content = "export-content".encodeToByteArray()
+            )
+        )
+        intending(
+            allOf(
+                hasAction(Intent.ACTION_CREATE_DOCUMENT)
+            )
+        ).respondWith(createCanceledActivityResult())
+
+        composeRule.onNodeWithTag(MainTestTags.IMPORT_SAF_BUTTON).performClick()
+        waitForProjectOpen()
+
+        composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).assertExists()
+    }
+
+    private fun waitForProjectOpen() {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag(MainTestTags.EXPORT_PROJECT_BUTTON)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
 }

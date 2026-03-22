@@ -50,4 +50,32 @@ class MainActivitySafImportFlowTest {
 
         composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).assertExists()
     }
+
+    @Test
+    fun safImportResult_survivesRecreate() {
+        intending(
+            allOf(
+                hasAction(Intent.ACTION_OPEN_DOCUMENT)
+            )
+        ).respondWith(
+            createOpenDocumentResult(
+                displayName = "sample-recreate.apk",
+                content = "apk-content".encodeToByteArray()
+            )
+        )
+
+        composeRule.onNodeWithTag(MainTestTags.IMPORT_SAF_BUTTON).performClick()
+
+        waitForProjectOpen()
+        composeRule.activityRule.scenario.recreate()
+        waitForProjectOpen()
+        composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).assertExists()
+    }
+
+    private fun waitForProjectOpen() {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag(MainTestTags.EXPORT_PROJECT_BUTTON)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
 }

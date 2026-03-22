@@ -91,6 +91,10 @@ fun createCreateDocumentResult(
     return outputFile to Instrumentation.ActivityResult(Activity.RESULT_OK, resultIntent)
 }
 
+fun createCanceledActivityResult(): Instrumentation.ActivityResult {
+    return Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
+}
+
 fun createAdvancedImportResultForFile(
     file: File,
     openProject: Boolean = false,

@@ -77,8 +77,9 @@ fun MainScreen(viewModel: MainViewModel) {
 
                     val showSearchForStringsDialog =
                         viewModel.showSearchForStringsDialog.collectAsState()
-                    if (showSearchForStringsDialog.value == ShowSearchForStringsDialog.Shown) {
-                        SearchForStringsDialog(viewModel)
+                    val dialogState = showSearchForStringsDialog.value
+                    if (dialogState is ShowSearchForStringsDialog.Shown) {
+                        SearchForStringsDialog(viewModel, dialogState.notice)
                     }
                 }
             }

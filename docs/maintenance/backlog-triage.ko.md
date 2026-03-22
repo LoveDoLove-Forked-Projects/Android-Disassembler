@@ -35,7 +35,8 @@
 
 | 작업 묶음 | 관련 이슈 | 제안 상태 | 판단 | 다음 액션 |
 | --- | --- | --- | --- | --- |
-| 대용량/메모리/RecyclerView 크래시 | `#219`, `#235`, `#442`, `#523` | `planned-fast-follow` | `#728`에서 큰 파일 byte cache 제한과 문자열 검색 결과 상한/stable key를 먼저 넣었다 | `#728` 병합 후 실제 150MB 파일과 긴 문자열 리스트로 재검증하고 나머지 OOM 경로를 분리 |
+| 대용량/메모리 크래시 | `#219`, `#235`, `#523` | `planned-fast-follow` | `#728`에서 큰 파일 byte cache 제한과 문자열 검색 결과 상한/stable key를 먼저 넣었고, `#741`에서 문자열 검색 입력 상한과 프로젝트 전환 시 탭/전역 캐시 리셋을 추가하고 있다 | 실제 150MB 파일과 긴 문자열 리스트로 재검증하고, 남아 있는 OOM 경로를 더 분리 |
+| legacy RecyclerView crash | `#442` | `obsolete-or-policy-invalid` | stack trace가 가리키던 `fragment_string.xml`/`FoundStringAdapter` 경로는 이미 Compose UI로 대체되었고, 남아 있던 죽은 layout 리소스도 제거했다 | obsolete로 정리 |
 | `.so`/ELF/autosetup | `#514`, `#543`, `#576`, `#137` | `planned-fast-follow` | `#728`에서 64-bit ELF machine type 매핑과 override autosetup 재적용 경로를 먼저 수정했다 | 실제 `.so` 샘플로 재검증하고 남는 parser 문제만 분리 |
 | 구형 Android archive 감지 크래시 | `#507`, `#508` | `planned-fast-follow` | `#728`에서 archive 확장자 fast path와 `NoClassDefFoundError` 방어를 넣어 구형 Android의 Commons Compress 감지 크래시 경로를 우회했다 | Android 6~7 계열에서 archive chooser와 open 경로를 재확인하고 정리 |
 | project-relative path assertion 크래시 | `#512` | `planned-fast-follow` | `#728`에서 drawer/tab 경로가 project 바깥 항목을 열려다 `getRelPath()` 예외로 죽지 않도록 null-safe guard를 넣었다 | stale project/drawer entry에서 실패 메시지로만 처리되는지 확인하고 정리 |

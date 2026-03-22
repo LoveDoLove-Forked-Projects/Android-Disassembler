@@ -27,6 +27,74 @@ import kotlinx.coroutines.flow.StateFlow
 import timber.log.Timber
 
 private const val MAX_RENDERED_STRING_RESULTS = 5_000
+private const val MAX_RENDERED_STRING_CHARS = 4_096
+private const val MAX_RENDERED_STRING_TOTAL_CHARS = 32_768
+internal const val MAX_SEARCHED_STRING_BYTES = 4 * 1024 * 1024
+
+data class StringSearchInput(
+    val bytes: ByteArray,
+    val originalSize: Long,
+    val isTruncated: Boolean
+)
+
+internal fun buildStringSearchInput(
+    previewBytes: ByteArray,
+    originalSize: Long,
+    maxBytes: Int = MAX_SEARCHED_STRING_BYTES
+): StringSearchInput {
+    return StringSearchInput(
+        bytes = previewBytes,
+        originalSize = originalSize,
+        isTruncated = originalSize > maxBytes
+    )
+}
+
+internal fun buildStringSearchNotice(
+    input: StringSearchInput,
+    resultsTruncated: Boolean
+): String? {
+    val parts = mutableListOf<String>()
+    if (input.isTruncated) {
+        parts += "Searching strings in first ${input.bytes.size} bytes of ${input.originalSize} bytes"
+    }
+    if (resultsTruncated) {
+        parts += "Showing first $MAX_RENDERED_STRING_RESULTS results."
+    }
+    return when {
+        parts.isEmpty() -> null
+        parts.size == 1 -> parts.single()
+        else -> parts.joinToString(". ")
+    }
+}
+
+internal fun buildStringSearchDialogNotice(
+    originalSize: Long,
+    maxBytes: Int = MAX_SEARCHED_STRING_BYTES
+): String? {
+    if (originalSize <= maxBytes) {
+        return null
+    }
+    return "Large file detected. String search will only scan the first $maxBytes bytes of $originalSize bytes."
+}
+
+internal fun clipFoundStringForRendering(
+    result: FoundString,
+    maxChars: Int = MAX_RENDERED_STRING_CHARS
+): Pair<FoundString, Boolean> {
+    require(maxChars >= 0) { "maxChars must be non-negative" }
+    if (result.string.length <= maxChars) {
+        return result to false
+    }
+    if (maxChars == 0) {
+        return result.copy(string = "") to true
+    }
+    val clippedString = if (maxChars <= 3) {
+        result.string.take(maxChars)
+    } else {
+        result.string.take(maxChars - 3) + "..."
+    }
+    return result.copy(string = clippedString) to true
+}
 
 class StringSearchResultAccumulator(private val maxResults: Int) {
     private val _results = mutableListOf<FoundString>()
@@ -36,12 +104,27 @@ class StringSearchResultAccumulator(private val maxResults: Int) {
     var isTruncated: Boolean = false
         private set
 
+    private var renderedChars: Int = 0
+
     fun append(result: FoundString) {
         if (_results.size >= maxResults) {
             isTruncated = true
             return
         }
-        _results.add(result)
+        val remainingChars = MAX_RENDERED_STRING_TOTAL_CHARS - renderedChars
+        if (remainingChars <= 0) {
+            isTruncated = true
+            return
+        }
+        val (displayResult, wasClipped) = clipFoundStringForRendering(
+            result,
+            minOf(MAX_RENDERED_STRING_CHARS, remainingChars)
+        )
+        if (wasClipped) {
+            isTruncated = true
+        }
+        _results.add(displayResult)
+        renderedChars += displayResult.string.length
     }
 }
 
@@ -52,21 +135,31 @@ class StringTabData(val data: TabKind.FoundString) : PreparedTabData() {
     val isDone = _isDone as StateFlow<Boolean>
     private val _isTruncated = MutableStateFlow(false)
     val isTruncated = _isTruncated as StateFlow<Boolean>
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice = _notice as StateFlow<String?>
     lateinit var analyzer: Analyzer
     override suspend fun prepare() {
-        val bytes = ProjectDataStorage.getFileContent(data.relPath)
+        val fileSize = ProjectDataStorage.resolveToRead(data.relPath)?.length() ?: 0L
+        val input = buildStringSearchInput(
+            previewBytes = ProjectDataStorage.getFileContentPreview(
+                data.relPath,
+                MAX_SEARCHED_STRING_BYTES
+            ),
+            originalSize = fileSize
+        )
         Timber.d("Given relPath: ${data.relPath}")
-        analyzer = Analyzer(bytes)
+        analyzer = Analyzer(input.bytes)
         val accumulator = StringSearchResultAccumulator(MAX_RENDERED_STRING_RESULTS)
         analyzer.searchStrings(data.range.first, data.range.last) { p, t, fs ->
             fs?.let {
                 accumulator.append(it)
-                if (!accumulator.isTruncated) {
-                    strings.add(it)
+                if (strings.size < accumulator.results.size) {
+                    strings.add(accumulator.results.last())
                 }
             }
             if (p == t) { // done
                 _isTruncated.value = accumulator.isTruncated
+                _notice.value = buildStringSearchNotice(input, accumulator.isTruncated)
                 _isDone.value = true
             }
         }
@@ -80,15 +173,13 @@ fun StringTab(data: TabData, viewModel: MainViewModel) {
     val preparedTabData: StringTabData = viewModel.getTabData(data)
     val strings = preparedTabData.strings
     val isDone = preparedTabData.isDone.collectAsState()
-    val isTruncated = preparedTabData.isTruncated.collectAsState()
+    val notice = preparedTabData.notice.collectAsState()
     Column {
         Row {
             if (!isDone.value) {
                 Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Searching...")
             }
-            if (isTruncated.value) {
-                Text("Showing first $MAX_RENDERED_STRING_RESULTS results")
-            }
+            notice.value?.let { Text(it) }
         }
         TableView(
             titles = listOf("Offset" to 100.dp, "Length" to 50.dp, "String" to 800.dp),
@@ -106,7 +197,7 @@ fun StringTab(data: TabData, viewModel: MainViewModel) {
 }
 
 @Composable
-fun SearchForStringsDialog(viewModel: MainViewModel) {
+fun SearchForStringsDialog(viewModel: MainViewModel, notice: String?) {
     var from by remember { mutableStateOf("0") }
     var to by remember { mutableStateOf("0") }
     AlertDialog(
@@ -117,10 +208,18 @@ fun SearchForStringsDialog(viewModel: MainViewModel) {
             Text(text = "Search for strings with length ? to ?")
         },
         text = {
-            Row {
-                NumberTextField(from, { from = it }, modifier = Modifier.weight(1f))
-                Text(text = "to..")
-                NumberTextField(to, { to = it }, modifier = Modifier.weight(1f))
+            Column {
+                notice?.let {
+                    Text(
+                        text = it,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                Row {
+                    NumberTextField(from, { from = it }, modifier = Modifier.weight(1f))
+                    Text(text = "to..")
+                    NumberTextField(to, { to = it }, modifier = Modifier.weight(1f))
+                }
             }
         },
         confirmButton = {

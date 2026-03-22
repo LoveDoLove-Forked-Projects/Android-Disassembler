@@ -72,12 +72,16 @@
 | `MainActivity` intent 재처리 가드 테스트 | 통과 | 첫 생성에서는 처리, 회전 재생성에서는 건너뛰는 규칙을 고정 |
 | `assembleDebugAndroidTest` | 통과 | AndroidX runner와 smoke test가 컴파일되는지 확인 |
 | 강화된 `assembleDebugAndroidTest` | 통과 | Compose UI 기반 PR 회귀 테스트 세트가 instrumentation APK로 묶이는지 확인 |
+| 추가 instrumentation 사용 시나리오 컴파일 | 통과 | SAF import 후 recreate, advanced import `copy=no`, `EXTRA_STREAM` recreate, export cancel 유지 경계를 androidTest에 추가 |
 | large-file cache policy 테스트 | 통과 | 큰 파일은 메모리 캐시에 남기지 않는 규칙을 고정 |
 | string search accumulator 테스트 | 통과 | 문자열 결과 상한과 truncation 동작을 고정 |
 | binary detail preview 테스트 | 통과 | 긴 detail 문자열은 preview만 렌더링하고 notice를 붙이는 규칙을 고정 |
 | expanded file cache key 테스트 | 통과 | 같은 파일 내용은 같은 streaming hash를 만들고, 전체 `readBytes()` 없이 key를 계산하는 규칙을 고정 |
 | hex preview 테스트 | 통과 | Hex 탭이 큰 파일 바이트 배열을 preview 상한으로 잘라 렌더링하는 규칙을 고정 |
 | text preview 테스트 | 통과 | Text 탭이 큰 파일 바이트 배열을 preview 상한으로 잘라 highlight하는 규칙을 고정 |
+| project workspace reset 테스트 | 통과 | 새 프로젝트를 열면 열린 탭과 현재 탭 인덱스를 `Overview` 하나로 리셋하는 규칙을 고정 |
+| project data cache clear 테스트 | 통과 | 프로젝트 전환 시 전역 파일 content cache를 비우는 규칙을 고정 |
+| dead legacy string/binary layouts 제거 | 통과 | `RecyclerView`/fragment 기반 obsolete UI 리소스를 지워 `#442` stack trace 경로를 코드베이스에서 완전히 제거 |
 | import destination 파일명 테스트 | 통과 | 같은 display name으로 여러 번 import해도 app-private 파일이 덮어써지지 않는 규칙을 고정 |
 | imported project relocation 테스트 | 통과 | project archive import 후 `sourceFilePath`, `generatedFolder`, `project_info.json` 경로를 새 프로젝트 위치로 다시 맞추는 규칙을 고정 |
 | project open action 테스트 | 통과 | `Open as project`가 기존 project 디렉터리와 exported project ZIP에 대해 올바른 reopen/import 동작을 고르는 규칙을 고정 |

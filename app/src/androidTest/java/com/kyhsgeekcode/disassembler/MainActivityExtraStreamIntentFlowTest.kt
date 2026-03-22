@@ -42,6 +42,14 @@ class MainActivityExtraStreamIntentFlowTest {
         composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).assertExists()
     }
 
+    @Test
+    fun extraStreamContentUri_survivesRecreate() {
+        waitForProjectOpen()
+        composeRule.activityRule.scenario.recreate()
+        waitForProjectOpen()
+        composeRule.onNodeWithTag(MainTestTags.EXPORT_PROJECT_BUTTON).assertExists()
+    }
+
     private fun waitForProjectOpen() {
         composeRule.waitUntil(timeoutMillis = PROJECT_OPEN_TIMEOUT_MS) {
             composeRule.onAllNodesWithTag(MainTestTags.EXPORT_PROJECT_BUTTON)
