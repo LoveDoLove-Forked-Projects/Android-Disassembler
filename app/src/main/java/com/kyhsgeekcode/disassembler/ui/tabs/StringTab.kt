@@ -67,6 +67,16 @@ internal fun buildStringSearchNotice(
     }
 }
 
+internal fun buildStringSearchDialogNotice(
+    originalSize: Long,
+    maxBytes: Int = MAX_SEARCHED_STRING_BYTES
+): String? {
+    if (originalSize <= maxBytes) {
+        return null
+    }
+    return "Large file detected. String search will only scan the first $maxBytes bytes of $originalSize bytes."
+}
+
 internal fun clipFoundStringForRendering(
     result: FoundString,
     maxChars: Int = MAX_RENDERED_STRING_CHARS
@@ -187,7 +197,7 @@ fun StringTab(data: TabData, viewModel: MainViewModel) {
 }
 
 @Composable
-fun SearchForStringsDialog(viewModel: MainViewModel) {
+fun SearchForStringsDialog(viewModel: MainViewModel, notice: String?) {
     var from by remember { mutableStateOf("0") }
     var to by remember { mutableStateOf("0") }
     AlertDialog(
@@ -198,10 +208,18 @@ fun SearchForStringsDialog(viewModel: MainViewModel) {
             Text(text = "Search for strings with length ? to ?")
         },
         text = {
-            Row {
-                NumberTextField(from, { from = it }, modifier = Modifier.weight(1f))
-                Text(text = "to..")
-                NumberTextField(to, { to = it }, modifier = Modifier.weight(1f))
+            Column {
+                notice?.let {
+                    Text(
+                        text = it,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                Row {
+                    NumberTextField(from, { from = it }, modifier = Modifier.weight(1f))
+                    Text(text = "to..")
+                    NumberTextField(to, { to = it }, modifier = Modifier.weight(1f))
+                }
             }
         },
         confirmButton = {

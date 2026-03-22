@@ -53,4 +53,26 @@ class StringSearchInputPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `buildStringSearchDialogNotice is null for files within the search limit`() {
+        assertEquals(
+            null,
+            buildStringSearchDialogNotice(
+                originalSize = MAX_SEARCHED_STRING_BYTES.toLong(),
+                maxBytes = MAX_SEARCHED_STRING_BYTES
+            )
+        )
+    }
+
+    @Test
+    fun `buildStringSearchDialogNotice warns when only a prefix will be searched`() {
+        assertEquals(
+            "Large file detected. String search will only scan the first 4 bytes of 10 bytes.",
+            buildStringSearchDialogNotice(
+                originalSize = 10,
+                maxBytes = 4
+            )
+        )
+    }
 }

@@ -72,7 +72,7 @@ internal fun openedProjectWorkspaceState(
 
 sealed class ShowSearchForStringsDialog {
     object NotShown : ShowSearchForStringsDialog()
-    object Shown : ShowSearchForStringsDialog()
+    data class Shown(val notice: String?) : ShowSearchForStringsDialog()
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -359,7 +359,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun searchForStrings() {
         Timber.d("Will be shown strings dialog")
-        _showSearchForStrings.value = ShowSearchForStringsDialog.Shown
+        val notice = getCurrentRelPath()
+            ?.let { ProjectDataStorage.resolveToRead(it)?.length() }
+            ?.let { buildStringSearchDialogNotice(it) }
+        _showSearchForStrings.value = ShowSearchForStringsDialog.Shown(notice)
     }
 
     fun analyze() {
